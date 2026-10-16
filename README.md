@@ -2,6 +2,8 @@
 
 **A clipboard with a mind.**
 
+https://github.com/user-attachments/assets/1b9fbfdc-edc6-4353-8dbf-c019b9bc793c
+
 Clipboard history for macOS that you search by words or by what the clip is about, plus a search for
 apps, System Settings and files. Press **Left ⇧ ⌘ C**, type "router ip" or "flight to Lisbon" (in any language),
 and the right clip comes up, even when it shares no words with what you typed. Press **⌘ Space** and type "saf" for
