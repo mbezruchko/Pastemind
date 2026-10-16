@@ -1,6 +1,6 @@
 #!/bin/bash
 # Builds a release of Pastemind into release/<version>/: the app signed with a Developer ID, notarized and stapled; a
-# DMG of it (the app and a link to Applications), signed, notarized and stapled too; and the appcast Sparkle reads,
+# DMG of it (Pastemind.dmg: the app and a link to Applications), signed, notarized and stapled too; and the appcast Sparkle reads,
 # its one item signed with the update key. Publishing is a separate step: it prints the `gh release create` to run.
 #
 # Once per Mac:
@@ -80,7 +80,8 @@ STAGE=$(mktemp -d)
 chmod 755 "$STAGE"   # the DMG's top folder (mktemp makes it 700)
 ditto "$APP" "$STAGE/Pastemind.app"
 ln -s /Applications "$STAGE/Applications"
-DMG=$OUT/Pastemind-$VERSION.dmg
+# Named without its version: the site links to releases/latest/download/Pastemind.dmg.
+DMG=$OUT/Pastemind.dmg
 hdiutil create -quiet -volname Pastemind -srcfolder "$STAGE" -fs HFS+ -format UDZO -ov "$DMG"
 case "$STAGE" in /var/folders/*|/tmp/*|/private/*) rm -rf "$STAGE";; esac
 if ! $DRY; then

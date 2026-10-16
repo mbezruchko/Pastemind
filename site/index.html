@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pastemind: your clipboard, with a mind</title>
+  <meta name="description" content="Clipboard history for Mac that you search by meaning, in any language. It understands pictures, voice memos and scanned PDFs too. Free, open source, and it all runs on your Mac.">
+  <meta name="theme-color" content="#0f0e17">
+  <link rel="icon" type="image/png" href="/favicon.png">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Pastemind: your clipboard, with a mind">
+  <meta property="og:description" content="Find anything you copied by what it was about. Pictures, voice memos and scans too. Free, open source, 100% on your Mac.">
+  <meta property="og:image" content="https://pastemind.pages.dev/og.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="preload" href="/fonts/funnel-display-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="/fonts/funnel-sans-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="/style.css">
+  <script src="/js-on.js"></script>
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="nav">
+    <a class="brand" href="/" aria-label="Pastemind home">
+      <img src="/media/icon-256.png" alt="" width="32" height="32">
+      <span>Pastemind</span>
+    </a>
+    <nav aria-label="Sections">
+      <a href="#features">Features</a>
+      <a href="#privacy">Privacy</a>
+      <a href="https://github.com/mbezruchko/Pastemind">GitHub</a>
+    </nav>
+    <a class="btn btn-small download" href="https://github.com/mbezruchko/Pastemind/releases/latest/download/Pastemind.dmg">Download</a>
+  </header>
+
+  <main id="main">
+    <section class="hero" aria-labelledby="hero-title">
+      <h1 id="hero-title" class="hero-title">Your clipboard,<br>with a <mark class="swipe">mind</mark>.</h1>
+
+      <div class="hero-side">
+        <p class="lead">Pastemind remembers everything you copy and finds it by what it was about. Ask
+          “when does my plane leave” and the flight confirmation comes up, though it never said “plane”.</p>
+
+        <div class="cta">
+          <a class="btn download" href="https://github.com/mbezruchko/Pastemind/releases/latest/download/Pastemind.dmg">
+            <svg aria-hidden="true" viewBox="0 0 20 20" width="18" height="18"><path d="M10 3v10m0 0-4-4m4 4 4-4M4 16h12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <span class="download-label">Download for Mac</span>
+          </a>
+          <p class="fine">Free and open source · macOS 14+ · a Mac with M1 or later</p>
+        </div>
+
+        <div class="tries" aria-label="Try a search">
+          <p class="tries-label">Type one, or watch:</p>
+          <ul>
+            <li><button type="button" data-scene="0">when does my plane leave</button></li>
+            <li><button type="button" data-scene="1">owl</button></li>
+            <li><button type="button" data-scene="2">when is the rent due</button></li>
+            <li><button type="button" data-scene="3">call the dentist</button></li>
+            <li><button type="button" data-scene="4">orange color</button></li>
+          </ul>
+        </div>
+      </div>
+
+      <figure class="demo">
+        <div class="demo-stage">
+        <div class="panel" aria-hidden="true">
+          <div class="field">
+            <svg aria-hidden="true" viewBox="0 0 24 24" width="22" height="22"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="m15.5 15.5 5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M10.5 7.2l.7 1.9 1.9.7-1.9.7-.7 1.9-.7-1.9-1.9-.7 1.9-.7z" fill="currentColor"/></svg>
+            <span class="query">when does my plane leave</span><span class="caret" aria-hidden="true"></span>
+          </div>
+          <div class="pane">
+            <ul class="rows">
+              <li class="row selected">
+                <span class="tile tile-text" aria-hidden="true"></span>
+                <span class="row-text"><span class="row-title">Flight LH 2412 · MUC → BER · Gate K12</span><span class="row-sub">Mail · 2h</span></span>
+                <span class="row-key" aria-hidden="true">⌘1</span>
+              </li>
+            </ul>
+            <div class="preview"><p class="preview-text">Flight LH 2412 · MUC → BER · Gate K12 · boards 18:40</p></div>
+          </div>
+        </div>
+        </div>
+        <p class="sr-only" id="demo-status" aria-live="polite"></p>
+        <figcaption class="demo-caption">A replay of the real app’s results for these searches.</figcaption>
+      </figure>
+    </section>
+
+    <section class="film" aria-labelledby="film-title">
+      <h2 id="film-title" class="reveal"><span class="soft">See it in</span> 36 seconds.</h2>
+      <div class="video-frame reveal">
+        <video controls muted playsinline loop preload="none" poster="/media/poster.webp"
+               aria-label="Pastemind in 36 seconds: search by meaning, pictures, voice memos, scans, snippets and app search">
+          <source src="/media/pastemind.mp4" type="video/mp4">
+        </video>
+      </div>
+    </section>
+
+    <section class="kinds" id="features" aria-labelledby="kinds-title">
+      <div class="kinds-copy reveal">
+        <h2 id="kinds-title"><span class="soft">Everything you copy,</span> as itself.</h2>
+        <p>Code comes highlighted, colors as swatches, links with their site, pictures big enough to see. Press
+          <kbd>⌘</kbd><kbd>S</kbd> to keep any of them as a snippet.</p>
+        <div class="kind-tabs" role="tablist" aria-label="Kinds of clips">
+          <button type="button" role="tab" aria-selected="true" aria-controls="kind-panel" data-shot="glass-c_sel_code" data-alt="A code clip, highlighted in the preview">Code</button>
+          <button type="button" role="tab" aria-selected="false" aria-controls="kind-panel" data-shot="glass-c_sel_link" data-alt="A link clip, with its site in the preview">Links</button>
+          <button type="button" role="tab" aria-selected="false" aria-controls="kind-panel" data-shot="glass-c_sel_color" data-alt="A color clip, shown as a swatch">Colors</button>
+          <button type="button" role="tab" aria-selected="false" aria-controls="kind-panel" data-shot="glass-c_sel_image" data-alt="A picture clip, shown large">Pictures</button>
+          <button type="button" role="tab" aria-selected="false" aria-controls="kind-panel" data-shot="glass-n_list" data-alt="Snippets, in folders">Snippets</button>
+        </div>
+      </div>
+      <figure class="shot kinds-shot reveal" role="tabpanel" id="kind-panel" aria-label="Code">
+        <img id="kind-shot" src="/media/glass-c_sel_code.webp" width="1640" height="1082" loading="lazy" decoding="async"
+             alt="A code clip, highlighted in the preview">
+      </figure>
+    </section>
+
+    <section class="senses" aria-labelledby="senses-title">
+      <h2 id="senses-title" class="reveal"><span class="soft">It sees.<br>It listens.</span><br>It reads.</h2>
+
+      <article class="sense sense-photo reveal">
+        <figure class="shot"><img src="/media/glass-c_owl_final.webp" width="1640" height="1082" loading="lazy" decoding="async"
+             alt="Searching “owl” finds a photo of an owl that has no text in it"></figure>
+        <div class="sense-copy">
+          <h3>Photos, by what’s in them.</h3>
+          <p>Type “owl”, in English or in your own language, and the owl comes up. Pictures are understood by the
+            same model as your words, along with any text written in them.</p>
+        </div>
+      </article>
+
+      <article class="sense sense-voice reveal">
+        <div class="sense-copy">
+          <h3>Voice memos, by what’s said.</h3>
+          <p>Copy a recording and search for what was in it. “call the dentist” finds <em>New Recording 12</em>.</p>
+        </div>
+        <figure class="shot"><img src="/media/glass-c_memo_final.webp" width="1640" height="1082" loading="lazy" decoding="async"
+             alt="Searching “call the dentist” finds a voice memo"></figure>
+      </article>
+
+      <article class="sense sense-scan reveal">
+        <figure class="scan" aria-label="A scanned lease with the answer marked">
+          <img src="/media/scan-page.webp" width="1100" height="1424" loading="lazy" decoding="async"
+               alt="A scanned residential lease. The line “Rent is due on the first day of each month” is marked.">
+          <span class="ink ink-1" aria-hidden="true"></span>
+          <span class="ink ink-2" aria-hidden="true"></span>
+          <span class="scan-query" aria-hidden="true">when is the rent due</span>
+        </figure>
+        <div class="sense-copy">
+          <h3>Scans, read on your Mac.</h3>
+          <p>A scanned lease has no text at all, only pictures of pages. Pastemind reads them, up to 50 pages, and
+            finds the line you meant. Long documents are searched all the way through, not just their first page.</p>
+        </div>
+      </article>
+    </section>
+
+    <section class="search" aria-labelledby="search-title">
+      <div class="search-copy reveal">
+        <h2 id="search-title"><span class="soft">⌘Space,</span> but it gets you.</h2>
+        <p>Apps and System Settings, typos forgiven. Files by name, or by what’s in them: “zebra” finds a photo
+          called <em>IMG_4021.jpg</em>. Press <kbd>⇧</kbd><kbd>⌘</kbd><kbd>C</kbd> and the same panel turns into your
+          clipboard.</p>
+      </div>
+      <div class="search-shots">
+        <figure class="shot reveal"><img src="/media/glass-s_q1_05.webp" width="1640" height="727" loading="lazy" decoding="async"
+             alt="Typing “sfari” finds Safari"><figcaption>“sfari” is close enough.</figcaption></figure>
+        <figure class="shot reveal"><img src="/media/glass-s_q4_final.webp" width="1640" height="519" loading="lazy" decoding="async"
+             alt="Searching files for “zebra” finds IMG_4021.jpg by its content"><figcaption>Found by what’s in it.</figcaption></figure>
+      </div>
+    </section>
+
+    <section class="little" aria-labelledby="little-title">
+      <h2 id="little-title" class="reveal">And the little things.</h2>
+      <dl class="little-list reveal">
+        <div><dt><kbd>⌘</kbd><kbd>S</kbd></dt><dd>Keep a clip as a snippet, in folders you can reorder by dragging.</dd></div>
+        <div><dt><span class="gesture">Drag</span></dt><dd>Pull any clip out, into Finder, a chat or an upload field. It arrives as a file.</dd></div>
+        <div><dt><kbd>⇧</kbd></dt><dd>Tap Shift for Quick Look. Select text right inside a picture and copy it.</dd></div>
+        <div><dt><kbd>⌘</kbd><kbd>P</kbd></dt><dd>Pin what you paste every day. Pinned clips never expire.</dd></div>
+        <div><dt><kbd>⇧</kbd><kbd>↩</kbd></dt><dd>Paste as plain text, without the formatting.</dd></div>
+        <div><dt><kbd>⌘</kbd><kbd>1</kbd>…<kbd>9</kbd></dt><dd>Paste a row straight away, no arrows needed.</dd></div>
+      </dl>
+    </section>
+
+    <section class="privacy" id="privacy" aria-labelledby="privacy-title">
+      <h2 id="privacy-title" class="reveal">Nothing leaves<br>your Mac.</h2>
+      <ul class="promises reveal">
+        <li><strong>The model runs right here.</strong> A small AI model, Google’s EmbeddingGemma 2, on your Mac’s own chip. Your clips never touch a server.</li>
+        <li><strong>No account. No cloud. No tracking.</strong> This site doesn’t track you either.</li>
+        <li><strong>Open source.</strong> MIT licensed: <a href="https://github.com/mbezruchko/Pastemind">read every line on GitHub</a>.</li>
+      </ul>
+      <p class="privacy-fine reveal">It goes online for two things: to download its model once (246 MB, then 226 MB more
+        for pictures), and to check for a new version once a day, which you can turn off. It never keeps passwords
+        copied from password managers.</p>
+    </section>
+
+    <section class="get" aria-labelledby="get-title">
+      <img class="get-icon reveal" src="/media/icon-256.png" alt="" width="128" height="128" loading="lazy">
+      <h2 id="get-title" class="reveal">Copy anything.<br>Find it <mark>later</mark>.</h2>
+      <div class="cta cta-center reveal">
+        <a class="btn download" href="https://github.com/mbezruchko/Pastemind/releases/latest/download/Pastemind.dmg">
+          <svg aria-hidden="true" viewBox="0 0 20 20" width="18" height="18"><path d="M10 3v10m0 0-4-4m4 4 4-4M4 16h12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <span class="download-label">Download for Mac</span>
+        </a>
+        <p class="fine">Free · a 10 MB download · <a href="https://github.com/mbezruchko/Pastemind/releases">release notes and older versions</a></p>
+      </div>
+      <div class="before reveal">
+        <h3>Before you install</h3>
+        <ul>
+          <li><strong>A Mac with Apple silicon</strong> (M1 or later) and macOS 14 Sonoma or later.</li>
+          <li><strong>One download on first launch:</strong> its model, 246 MB, then 226 MB more for pictures.</li>
+          <li><strong>Auto-paste asks for Accessibility access.</strong> Until you allow it, ↩ copies and you press ⌘V.</li>
+          <li><strong>⌘Space is Spotlight’s</strong> until you turn Spotlight’s shortcut off, or pick another one for search in Settings.</li>
+        </ul>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <p>© 2026 Mykhailo Bezruchko</p>
+    <nav aria-label="Elsewhere">
+      <a href="https://github.com/mbezruchko/Pastemind">GitHub</a>
+      <a href="https://github.com/mbezruchko/Pastemind/blob/main/LICENSE">MIT License</a>
+      <a href="https://huggingface.co/mbezruchko/embeddinggemma-2-pastemind-GGUF">The model</a>
+    </nav>
+  </footer>
+</body>
+</html>

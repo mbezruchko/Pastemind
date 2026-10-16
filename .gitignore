@@ -7,3 +7,5 @@ Vendor/
 release/
 # Everything that makes the promo video stays local.
 promo/
+.playwright-mcp/
+.impeccable/
