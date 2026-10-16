@@ -1,0 +1,8 @@
+.build/
+build.noindex/
+Vendor/
+.swiftpm/
+.sign-id
+.DS_Store
+# Everything that makes the promo video stays local.
+promo/

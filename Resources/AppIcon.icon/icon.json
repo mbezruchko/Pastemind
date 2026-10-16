@@ -1,0 +1,129 @@
+{
+  "fill": {
+    "linear-gradient": [
+      "srgb:0.23529,0.22745,0.21961,1.00000",
+      "srgb:0.09020,0.08627,0.08235,1.00000"
+    ],
+    "orientation": {
+      "start": {
+        "x": 0.5,
+        "y": 0
+      },
+      "stop": {
+        "x": 0.5,
+        "y": 1
+      }
+    }
+  },
+  "groups": [
+    {
+      "layers": [
+        {
+          "glass": true,
+          "image-name": "clip.svg",
+          "name": "clip",
+          "fill-specializations": [
+            {
+              "value": {
+                "solid": "srgb:0.34118,0.32941,0.31765,1.00000"
+              }
+            },
+            {
+              "appearance": "dark",
+              "value": {
+                "solid": "srgb:0.95686,0.92549,0.88627,1.00000"
+              }
+            },
+            {
+              "appearance": "tinted",
+              "value": {
+                "solid": "srgb:0.95686,0.92549,0.88627,1.00000"
+              }
+            }
+          ]
+        }
+      ],
+      "shadow": {
+        "kind": "neutral",
+        "opacity": 0.5
+      },
+      "translucency": {
+        "enabled": true,
+        "value": 0.1
+      }
+    },
+    {
+      "layers": [
+        {
+          "glass": true,
+          "image-name": "sparkle.svg",
+          "name": "sparkle",
+          "fill-specializations": [
+            {
+              "value": {
+                "solid": "srgb:0.46275,0.44706,0.43137,1.00000"
+              }
+            },
+            {
+              "appearance": "dark",
+              "value": {
+                "solid": "srgb:0.98431,0.97255,0.95294,1.00000"
+              }
+            },
+            {
+              "appearance": "tinted",
+              "value": {
+                "solid": "srgb:0.98431,0.97255,0.95294,1.00000"
+              }
+            }
+          ]
+        }
+      ],
+      "shadow": {
+        "kind": "neutral",
+        "opacity": 0.5
+      }
+    },
+    {
+      "layers": [
+        {
+          "glass": true,
+          "image-name": "board.svg",
+          "name": "board",
+          "fill-specializations": [
+            {
+              "value": {
+                "solid": "srgb:0.95686,0.92549,0.88627,1.00000"
+              }
+            },
+            {
+              "appearance": "dark",
+              "value": {
+                "solid": "srgb:0.36863,0.35294,0.33725,1.00000"
+              }
+            },
+            {
+              "appearance": "tinted",
+              "value": {
+                "solid": "srgb:0.36863,0.35294,0.33725,1.00000"
+              }
+            }
+          ]
+        }
+      ],
+      "shadow": {
+        "kind": "neutral",
+        "opacity": 0.5
+      },
+      "translucency": {
+        "enabled": true,
+        "value": 0.25
+      }
+    }
+  ],
+  "supported-platforms": {
+    "squares": [
+      "macOS"
+    ]
+  }
+}
