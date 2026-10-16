@@ -273,5 +273,9 @@ with its own history on a private pasteboard that never presses ⌘V. Drive it w
 
 ## Credits
 
-EmbeddingGemma 2 (Apache 2.0), llama.cpp (MIT), highlight.js (BSD 3-Clause); third-party notices are in
-`Resources/Acknowledgements.txt`, shipped with the app.
+EmbeddingGemma 2 (Apache 2.0), llama.cpp (MIT), Sparkle (MIT), highlight.js (BSD 3-Clause); third-party notices are
+in `Resources/Acknowledgements.txt`, shipped with the app.
+
+## License
+
+MIT: see [LICENSE](LICENSE).
