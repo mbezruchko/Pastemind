@@ -1,6 +1,6 @@
 #!/bin/bash
 # Builds a release of Pastemind into release/<version>/: the app signed with a Developer ID, notarized and stapled; a
-# DMG of it (Pastemind.dmg: the app and a link to Applications), signed, notarized and stapled too; and the appcast Sparkle reads,
+# DMG of it (Pastemind.dmg: the app and a link to Applications on its own background), signed, notarized and stapled too; and the appcast Sparkle reads,
 # its one item signed with the update key. Publishing is a separate step: it prints the `gh release create` to run.
 #
 # Once per Mac:
@@ -75,15 +75,13 @@ if ! $DRY; then
   xcrun stapler staple "$APP"
 fi
 
-# The DMG: the app and a link to Applications to drag it onto.
-STAGE=$(mktemp -d)
-chmod 755 "$STAGE"   # the DMG's top folder (mktemp makes it 700)
-ditto "$APP" "$STAGE/Pastemind.app"
-ln -s /Applications "$STAGE/Applications"
-# Named without its version: the site links to releases/latest/download/Pastemind.dmg.
+# The DMG: the app and a link to Applications, laid out on their background with the window's bars hidden and the
+# app's icon on the volume (scripts/dmg: dmgbuild writes Finder's settings itself, no Finder scripting). Named without
+# its version: the site links to releases/latest/download/Pastemind.dmg.
+DMGBUILD=.build/dmgbuild/bin/dmgbuild
+[[ -x $DMGBUILD ]] || { python3 -m venv .build/dmgbuild && .build/dmgbuild/bin/pip install -q dmgbuild==1.6.7; }
 DMG=$OUT/Pastemind.dmg
-hdiutil create -quiet -volname Pastemind -srcfolder "$STAGE" -fs HFS+ -format UDZO -ov "$DMG"
-case "$STAGE" in /var/folders/*|/tmp/*|/private/*) rm -rf "$STAGE";; esac
+"$DMGBUILD" -s scripts/dmg/settings.py -D app="$APP" Pastemind "$DMG" > /dev/null
 if ! $DRY; then
   codesign --force --sign "$IDENTITY" --timestamp "$DMG"
   notarize "$DMG"

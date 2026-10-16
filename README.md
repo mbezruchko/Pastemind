@@ -242,7 +242,10 @@ invalid code signature (`open` reports error -609). `scripts/install.sh` removes
 `scripts/release.sh` makes `release/<version>/`: Pastemind.app signed with a Developer ID, notarized and stapled, in a
 DMG that's signed, notarized and stapled too, and the `appcast.xml` Sparkle reads (one item, signed with the update
 key). Raise `CFBundleShortVersionString` and `CFBundleVersion` in `Resources/Info.plist` first; it ends with the
-`gh release create` that publishes both files. `--dry-run`, with a throwaway key in `SPARKLE_KEY_FILE`, checks the DMG
+`gh release create` that publishes both files. The DMG's window (light paper, the icons' places, the marker under
+Applications, no bars) is `scripts/dmg`: dmgbuild writes Finder's settings into the image itself, no Finder scripting
+(installed into `.build/dmgbuild` on first use). To redraw the background, `scripts/dmg/background.py` with Pillow,
+NumPy and fontTools in that environment (`.build/dmgbuild/bin/pip install pillow numpy fonttools brotli`). `--dry-run`, with a throwaway key in `SPARKLE_KEY_FILE`, checks the DMG
 and the appcast without a Developer ID.
 
 Once per Mac, as the top of the script says: a "Developer ID Application" certificate, notarytool's credentials under
