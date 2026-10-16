@@ -154,6 +154,10 @@ final class SettingsModel {
         return count == 1 ? "1 file read" : "\(count.formatted()) files read"
     }
     var openAtLogin = SMAppService.mainApp.status == .enabled
+    /// Sparkle's own setting (kept in its defaults); only in builds that update.
+    var checksForUpdates = false {
+        didSet { app.updater.automaticallyChecks = checksForUpdates }
+    }
     var showMenuBarIcon = Settings.showMenuBarIcon {
         didSet {
             Settings.showMenuBarIcon = showMenuBarIcon
@@ -177,6 +181,7 @@ final class SettingsModel {
 
     init(app: AppController) {
         self.app = app
+        checksForUpdates = app.updater.automaticallyChecks
         refresh()
         for action in HotkeyCenter.Action.allCases { sided[action] = combos[action]?.isSided ?? false }
         app.hotkeys.onChange = { [weak self] in self?.refresh() }
@@ -454,6 +459,17 @@ struct SettingsView: View {
                                : "To get back here, open Pastemind again (from Applications, Spotlight or its own "
                                + "search), or press ⌘, in a panel.") {
                     Switch(isOn: $model.showMenuBarIcon)
+                }
+                if model.app.updater.isOn {
+                    RowDivider()
+                    SettingRow(title: "Check for updates automatically",
+                               detail: "Once a day, from GitHub. The request carries only Pastemind's version; updates are signed.") {
+                        HStack(spacing: 10) {
+                            Button { model.app.updater.checkNow() } label: { Pill(title: "Check Now") }
+                                .buttonStyle(Pressable())
+                            Switch(isOn: $model.checksForUpdates)
+                        }
+                    }
                 }
                 RowDivider()
                 SettingRow(title: "Auto-paste and Left/Right keys") {

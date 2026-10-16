@@ -20,6 +20,8 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     /// Quick Look is search's (see `beginPreviewPanelControl`).
     private var searchLooks = false
     private var settings: SettingsWindowController!
+    /// Sparkle: new versions from GitHub Releases.
+    private(set) var updater: Updater!
     private var statusItem: NSStatusItem!
     private var download: ModelDownload?
     /// When each item was last opened from search (read once, again after each launch).
@@ -61,6 +63,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         host = PanelHost(height: max(PanelController.height, LauncherController.maxHeight))
         panel = PanelController(app: self, host: host)
         launcher = LauncherController(app: self, host: host)
+        updater = Updater()
         settings = SettingsWindowController(app: self)
         watcher.onCapture = { [weak self] capture, source in self?.record(capture, from: source) }
         watcher.start()
@@ -710,6 +713,9 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
         menu.addItem(.separator())
         menu.addItem(NSMenuItem(title: "Settings…", action: #selector(openSettings), keyEquivalent: ","))
+        if updater.isOn {
+            menu.addItem(NSMenuItem(title: "Check for Updates…", action: #selector(checkForUpdates), keyEquivalent: ""))
+        }
         menu.addItem(NSMenuItem(title: "Clear History…", action: #selector(clearHistory), keyEquivalent: ""))
         menu.addItem(NSMenuItem(title: "Quit Pastemind", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
         for item in menu.items where item.action != #selector(NSApplication.terminate(_:)) { item.target = self }
@@ -749,6 +755,12 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     @objc private func togglePause() { Settings.paused.toggle() }
+
+    @objc private func checkForUpdates() {
+        panel.hide()
+        launcher.hide()
+        updater.checkNow()
+    }
 
     @objc private func toggleFileReading() {
         Settings.filesPaused.toggle()

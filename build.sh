@@ -3,7 +3,8 @@
 #   ./build.sh                       signed with the identity in .sign-id (one line, gitignored), else the first
 #                                    "Apple Development" identity in the keychain, else ad-hoc. A stable identity keeps
 #                                    the Accessibility grant (auto-paste) across rebuilds; ad-hoc builds lose it.
-#   SIGN_ID="<identity>" ./build.sh  this identity instead
+#   SIGN_ID="<identity>" ./build.sh  this identity instead (a "Developer ID Application" one gets a secure timestamp,
+#                                    as notarization needs: scripts/release.sh)
 # ".noindex" keeps Spotlight from listing the staging copy. Copy it to /Applications to keep it.
 set -euo pipefail
 cd "$(dirname "$0")"
@@ -23,6 +24,9 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BIN_DIR/PastemindApp" "$APP/Contents/MacOS/Pastemind"
 # Text in scans and pictures (Vision), in a process of its own: its models go when it exits.
 cp "$BIN_DIR/pastemind-ocr" "$APP/Contents/MacOS/pastemind-ocr"
+# Updates (Sparkle), found through the app's rpath, @executable_path/../Frameworks.
+mkdir -p "$APP/Contents/Frameworks"
+ditto "$BIN_DIR/Sparkle.framework" "$APP/Contents/Frameworks/Sparkle.framework"
 # SwiftPM's linker records the deployment target as the SDK it was built with (14.0): AppKit then draws the controls
 # as before macOS 26 (switches with round knobs, smaller). The SDK it was really built with, so they're drawn anew.
 SDK_VERSION="$(xcrun --sdk macosx --show-sdk-version)"
@@ -49,7 +53,17 @@ if [[ -z "$IDENTITY" ]]; then
   IDENTITY=$(security find-identity -v -p codesigning 2>/dev/null | sed -n 's/.*"\(Apple Development[^"]*\)".*/\1/p' | head -1)
 fi
 IDENTITY="${IDENTITY:--}"
-# The helper first: signing the app seals what's inside it, signed as it is then.
-codesign --force --sign "$IDENTITY" --options runtime --timestamp=none "$APP/Contents/MacOS/pastemind-ocr"
-codesign --force --sign "$IDENTITY" --options runtime --timestamp=none "$APP"
+TIMESTAMP=--timestamp=none
+[[ "$IDENTITY" == "Developer ID Application"* ]] && TIMESTAMP=--timestamp
+sign() { codesign --force --sign "$IDENTITY" --options runtime $TIMESTAMP "$@"; }
+# Inside out: signing a bundle seals what's inside it, signed as it is then. Sparkle's parts as its documentation has
+# them (the downloader keeps its entitlements).
+SPARKLE="$APP/Contents/Frameworks/Sparkle.framework/Versions/B"
+sign "$SPARKLE/XPCServices/Installer.xpc"
+sign --preserve-metadata=entitlements "$SPARKLE/XPCServices/Downloader.xpc"
+sign "$SPARKLE/Autoupdate"
+sign "$SPARKLE/Updater.app"
+sign "$APP/Contents/Frameworks/Sparkle.framework"
+sign "$APP/Contents/MacOS/pastemind-ocr"
+sign "$APP"
 echo "Built $APP (signed: $IDENTITY)"

@@ -95,7 +95,8 @@ It never keeps what apps mark as concealed or transient (passwords from 1Passwor
 
 Everything stays on this Mac, in `~/Library/Application Support/Pastemind`. Pastemind goes online only to download the
 model, once: 246 MB for text, 226 MB for pictures after it, and 328 MB for sound only once a recording is copied or
-opened.
+opened; and to look for a new version once a day, from this repository's releases (the request carries only
+Pastemind's version; Settings → General turns it off).
 
 ## How it works
 
@@ -231,10 +232,27 @@ scripts/install.sh       # → /Applications/Pastemind.app, started (replaces th
 the Accessibility grant survives rebuilds. The first launch downloads the model: the text model, then the image
 encoder; the audio encoder comes once a recording is copied or opened.
 
-To run it on another Mac (a MacBook Air, say), build it there the same way. A copied app is quarantined by
-Gatekeeper because it isn't notarized: `xattr -dr com.apple.quarantine /Applications/Pastemind.app` lets it open.
+A build of your own isn't notarized: copied to another Mac, Gatekeeper quarantines it
+(`xattr -dr com.apple.quarantine /Applications/Pastemind.app` lets it open). Releases are (below).
 Don't `cp -R` a new build over an installed one: the binary is rewritten in place and macOS kills it at launch for an
 invalid code signature (`open` reports error -609). `scripts/install.sh` removes the old copy first.
+
+## Release
+
+`scripts/release.sh` makes `release/<version>/`: Pastemind.app signed with a Developer ID, notarized and stapled, in a
+DMG that's signed, notarized and stapled too, and the `appcast.xml` Sparkle reads (one item, signed with the update
+key). Raise `CFBundleShortVersionString` and `CFBundleVersion` in `Resources/Info.plist` first; it ends with the
+`gh release create` that publishes both files. `--dry-run`, with a throwaway key in `SPARKLE_KEY_FILE`, checks the DMG
+and the appcast without a Developer ID.
+
+Once per Mac, as the top of the script says: a "Developer ID Application" certificate, notarytool's credentials under
+the profile `pastemind-notary`, and the update key in the keychain under the account `pastemind` (`generate_keys`, in
+Sparkle's package at `.build/artifacts/sparkle/Sparkle/bin`). Keep a copy of that key: installed copies take only
+updates signed with it.
+
+Updates are Sparkle 2's (`Updater.swift`): once a day it reads `SUFeedURL`, the latest release's `appcast.xml`, and
+installs an update only if its EdDSA signature matches `SUPublicEDKey` (both in `Resources/Info.plist`). **Check for
+Updates…** is in the menu bar icon's menu; Settings → General has the daily check's switch. Debug runs never check.
 
 ## Developing
 
