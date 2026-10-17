@@ -805,7 +805,8 @@ final class PanelController {
             quickLook.close()
             return true
         case 16 where modifiers == .command && !snippets:  // ⌘Y: Quick Look, as in Finder (or a tap of ⇧)
-            toggleQuickLook()
+            // Once a press: held, the key repeats, and each repeat toggled it again.
+            if !event.isARepeat { toggleQuickLook() }
             return true
         case 123 where !snippets && modifiers.isEmpty && quickLook.showsSeveral,
              124 where !snippets && modifiers.isEmpty && quickLook.showsSeveral:  // ← →: Quick Look's files

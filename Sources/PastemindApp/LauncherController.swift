@@ -438,7 +438,8 @@ final class LauncherController {
             quickLook.close()
             return true
         case 16 where modifiers == .command:  // ⌘Y: Quick Look, as in Finder (or a tap of ⇧)
-            toggleQuickLook()
+            // Once a press: held, the key repeats, and each repeat toggled it again.
+            if !event.isARepeat { toggleQuickLook() }
             return true
         case 48 where modifiers.isEmpty || modifiers == .shift:  // ⇥ ⇧⇥: files only, and back
             toggleFilesFilter()
