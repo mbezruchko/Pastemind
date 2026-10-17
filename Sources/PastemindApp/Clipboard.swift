@@ -47,8 +47,9 @@ final class ClipboardWatcher {
     /// then writes, and a big picture takes it a moment to encode. Read in between, the copy was empty (or only the
     /// picture's address), and missed: the count doesn't change again. The app in front then is the one it came from.
     private var pending: (types: [String], seen: CFTimeInterval, app: NSRunningApplication?)?
-    /// Still empty, or still changing, after this long: read as it is.
-    private static let patience: CFTimeInterval = 2
+    /// Still empty, or still changing, after this long: read as it is. A Chromium browser clears the pasteboard, then
+    /// encodes the picture as PNG: seconds for a big one. Waiting costs a look at the types four times a second.
+    private static let patience: CFTimeInterval = 10
     private var timer: Timer?
     var onCapture: (Capture, CaptureSource) -> Void = { _, _ in }
 
