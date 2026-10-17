@@ -141,6 +141,26 @@ nonisolated struct KeyCombo: Equatable, Sendable {
         KeyCombo(code: Int(keyCode), modifiers: Int(carbonModifiers), sides: 0) ?? self
     }
 
+    /// The same keys with each one-sided modifier on its other side: what a one-sided combination leaves to the app
+    /// in front.
+    var otherSide: KeyCombo {
+        let mirrored = Self.sideKeys.filter { sides & $0.bit != 0 }.reduce(UInt64(0)) { bits, side in
+            bits | (Self.sideKeys.first { $0.generic == side.generic && $0.bit != side.bit }?.bit ?? 0)
+        }
+        return KeyCombo(code: Int(keyCode), modifiers: Int(carbonModifiers), sides: mirrored) ?? self
+    }
+
+    /// Why a one-sided combination wants Accessibility access, and how it works till then (either side).
+    var sideNote: String {
+        let held = Self.genericKeys.filter { generic in
+            Self.sideKeys.contains { $0.generic == generic.modifier && sides & $0.bit != 0 }
+        }
+        let other = otherSide.display
+        let example = unsided.spec == "shift+cmd+c" ? " (Inspect in Chrome)" : ""
+        return "\(display): \(other.prefix(1).lowercased() + other.dropFirst()) stays with your apps\(example). "
+            + "Until Accessibility is allowed, either \(held.map(\.cap).joined(separator: " ")) opens Pastemind."
+    }
+
     /// A key event (from the event tap) is this combination: the same key, the same modifiers, the right sides.
     func matches(keyCode: Int64, flags: CGEventFlags) -> Bool {
         guard keyCode == Int64(self.keyCode) else { return false }
@@ -225,8 +245,7 @@ final class HotkeyCenter {
             } else {
                 if combo.isSided {
                     waitingForAccess = true
-                    problems[action] = "\(combo.display) needs Accessibility access to tell left from right; until "
-                        + "then either side works."
+                    problems[action] = combo.sideNote
                 }
                 let plain = combo.unsided
                 if let id = CarbonHotkeys.shared.register(plain, fire) {

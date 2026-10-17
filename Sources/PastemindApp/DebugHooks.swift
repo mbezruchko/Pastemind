@@ -12,7 +12,8 @@ enum DebugHooks {
     nonisolated(unsafe) private static var observer: NSObjectProtocol?
 
     static func install(panel: PanelController, launcher: LauncherController, settings: SettingsWindowController,
-                        app: AppController, hotkey: @escaping @MainActor @Sendable (HotkeyCenter.Action) -> Void) {
+                        welcome: WelcomeWindowController, app: AppController,
+                        hotkey: @escaping @MainActor @Sendable (HotkeyCenter.Action) -> Void) {
         guard enabled else { return }
         observer = DistributedNotificationCenter.default().addObserver(forName: notification, object: nil,
                                                                        queue: .main) { note in
@@ -61,6 +62,12 @@ enum DebugHooks {
                 case "settings": settings.show()
                 case "settingssnapshot": snapshot(settings.windowNumber, to: URL(fileURLWithPath: argument))
                 case "settingsnote": settings.flash(argument)
+                case "settingsscroll": settings.debugScroll(to: CGFloat(Double(argument) ?? 0))   // points down
+                case "welcome": welcome.show()
+                case "welcomesnapshot": snapshot(welcome.windowNumber, to: URL(fileURLWithPath: argument))
+                case "welcomestate": welcome.debugState(argument)   // start | done | failed: as if so, till the next one
+                case "welcomeclose": welcome.close()
+                case "welcomepage": welcome.debugPage(Int(argument) ?? 0)
                 case "options-pointer":   // on|off: the pointer taken as over the panels or not; auto: where it is
                     OptionsMenu.debugPointerOver = argument == "on" ? true : argument == "off" ? false : nil
                 case "options":   // the clipboard panel's options menu, up for that many seconds

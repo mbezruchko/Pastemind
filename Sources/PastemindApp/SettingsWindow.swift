@@ -21,6 +21,17 @@ final class SettingsWindowController {
         model?.flash(note)
     }
 
+    /// Debug runs: its settings scrolled that far down (points).
+    func debugScroll(to y: CGFloat) {
+        func scrollView(in view: NSView) -> NSScrollView? {
+            if let scroll = view as? NSScrollView { return scroll }
+            return view.subviews.lazy.compactMap(scrollView).first
+        }
+        guard let content = window?.contentView, let scroll = scrollView(in: content) else { return log("no scroll") }
+        scroll.contentView.scroll(to: NSPoint(x: 0, y: y))
+        scroll.reflectScrolledClipView(scroll.contentView)
+    }
+
     /// The window and its content's frames, for debug runs.
     var frames: String {
         guard let window else { return "no window" }
@@ -63,7 +74,7 @@ final class SettingsWindowController {
     }
 }
 
-private final class SettingsWindow: NSWindow {
+final class SettingsWindow: NSWindow {
     init() {
         super.init(contentRect: NSRect(x: 0, y: 0, width: SettingsView.width, height: 500),
                    styleMask: [.borderless, .fullSizeContentView], backing: .buffered, defer: false)
@@ -183,6 +194,9 @@ final class SettingsModel {
     private(set) var copiesArmed = false
     /// What removing them did, for a moment.
     private(set) var copiesNote: String?
+    /// Where the model's text and picture files are (on disk, coming, failed), read each second.
+    private(set) var textModel = AppController.ModelProgress.waiting
+    private(set) var pictureModel = AppController.ModelProgress.waiting
     @ObservationIgnored private var armedTask: Task<Void, Never>?
     @ObservationIgnored private var clearedTask: Task<Void, Never>?
     @ObservationIgnored private var copiesTask: Task<Void, Never>?
@@ -204,14 +218,42 @@ final class SettingsModel {
                 self.paused = Settings.paused
             }
         }
-        // Accessibility gets granted in System Settings: the window notices.
-        timer = Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { [weak self] _ in
+        // Accessibility gets granted in System Settings, and the model downloads: the window notices.
+        readModel()
+        timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated {
                 guard let self else { return }
                 let trusted = AXIsProcessTrusted()
                 if trusted != self.canPaste { self.canPaste = trusted }
+                self.readModel()
             }
         }
+    }
+
+    private func readModel() {
+        let (text, pictures) = (app.progress(of: ModelFiles.text), app.progress(of: ModelFiles.pictures))
+        if text != textModel { textModel = text }
+        if pictures != pictureModel { pictureModel = pictures }
+    }
+
+    /// The model's row: what it is, and how its download's going.
+    var modelNote: String {
+        switch textModel {
+        case .downloading: "\(ModelFiles.text.sizeName) from Hugging Face, once. Search by words works meanwhile."
+        case .failed: "The download didn't finish. Search works by words meanwhile."
+        case .waiting: "Waiting to download."
+        case .ready:
+            if case .downloading(let fraction) = pictureModel {
+                "Runs on this Mac. The picture model's on its way (\(Int(fraction * 100))%)."
+            } else {
+                "Runs on this Mac: what you copy never leaves it."
+            }
+        }
+    }
+
+    func retryModel() {
+        app.retryModel()
+        readModel()
     }
 
     func refresh() {
@@ -504,6 +546,17 @@ struct SettingsView: View {
             }
 
             SettingsSection(title: "Search") {
+                SettingRow(title: "Search model", detail: model.modelNote) {
+                    switch model.textModel {
+                    case .downloading(let fraction): DownloadBar(fraction: fraction)
+                    case .ready: Granted(title: "Ready")
+                    case .failed:
+                        Button { model.retryModel() } label: { Pill(title: "Try Again") }
+                            .buttonStyle(Pressable())
+                    case .waiting: EmptyView()
+                    }
+                }
+                RowDivider()
                 SettingRow(title: "Find files by what's in them",
                            detail: "Pictures, PDFs, documents, videos and recordings in your home folder. What you "
                                + "open is read at once, the last 60 days in the background, the rest while the Mac is "
@@ -548,7 +601,8 @@ struct SettingsView: View {
                     }
                 }
                 RowDivider()
-                SettingRow(title: "Auto-paste and Left/Right keys") {
+                SettingRow(title: "Paste into the app you're in",
+                           detail: "Accessibility access: ↩ pastes the clip you pick, not only copies it.") {
                     if model.canPaste {
                         Label("Allowed", systemImage: "checkmark.circle.fill")
                             .font(.system(size: 12, weight: .medium))
@@ -809,19 +863,22 @@ private struct KeysGrid: View {
 
 /// A titled group: the clipboard list's section title over rows on a faint card, its corners concentric with the
 /// window's (26 − 12 of inset).
-private struct SettingsSection<Content: View>: View {
-    let title: String
+struct SettingsSection<Content: View>: View {
+    /// Nil: the card alone.
+    let title: String?
     @ViewBuilder var content: Content
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text(title.uppercased())
-                .font(.system(size: 10, weight: .semibold))
-                .tracking(0.6)
-                .foregroundStyle(.secondary)
-                .padding(.horizontal, 10)
-                .padding(.top, 16)
-                .padding(.bottom, 6)
+            if let title {
+                Text(title.uppercased())
+                    .font(.system(size: 10, weight: .semibold))
+                    .tracking(0.6)
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 10)
+                    .padding(.top, 16)
+                    .padding(.bottom, 6)
+            }
             VStack(spacing: 0) { content }
                 .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Color.primary.opacity(0.045)))
                 .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(Color.primary.opacity(0.06)))
@@ -830,7 +887,7 @@ private struct SettingsSection<Content: View>: View {
 }
 
 /// A setting: its name (and a line about it) on the left, its control on the right.
-private struct SettingRow<Control: View>: View {
+struct SettingRow<Control: View>: View {
     let title: String
     var detail: String?
     var tint: Color?
@@ -858,7 +915,7 @@ private struct SettingRow<Control: View>: View {
     }
 }
 
-private struct RowDivider: View {
+struct RowDivider: View {
     var body: some View {
         Rectangle()
             .fill(Color.primary.opacity(0.07))
@@ -867,7 +924,7 @@ private struct RowDivider: View {
     }
 }
 
-private struct Switch: View {
+struct Switch: View {
     @Binding var isOn: Bool
 
     var body: some View {
@@ -891,7 +948,7 @@ private struct SoftScrollEdges: ViewModifier {
 
 /// The shortcut field's look: Liquid Glass on macOS 26, a faint fill and rim before; ringed in the accent colour
 /// while it's recording.
-private struct FieldChrome: ViewModifier {
+struct FieldChrome: ViewModifier {
     let recording: Bool
     private var shape: RoundedRectangle { RoundedRectangle(cornerRadius: 9, style: .continuous) }
 
@@ -914,7 +971,7 @@ private struct FieldChrome: ViewModifier {
 }
 
 /// A small capsule on the glass: buttons, and the value of a menu.
-private struct Pill: View {
+struct Pill: View {
     let title: String
     var symbol: String?
     /// A value (the history's length) reads in the primary color; an action, quieter.
@@ -939,7 +996,7 @@ private struct Pill: View {
 }
 
 /// Pressed, a control gives a little: it heard the click.
-private struct Pressable: ButtonStyle {
+struct Pressable: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .scaleEffect(configuration.isPressed ? 0.97 : 1)
@@ -948,7 +1005,7 @@ private struct Pressable: ButtonStyle {
 }
 
 /// Drags the window (it has no title bar): under the top row.
-private struct WindowDragArea: NSViewRepresentable {
+struct WindowDragArea: NSViewRepresentable {
     func makeNSView(context: Context) -> DragView { DragView() }
     func updateNSView(_ view: DragView, context: Context) {}
 
@@ -958,7 +1015,7 @@ private struct WindowDragArea: NSViewRepresentable {
 }
 
 /// The current shortcut as keycaps; click to record a new one.
-private struct ShortcutField: View {
+struct ShortcutField: View {
     let combo: KeyCombo?
     let recording: Bool
     let action: () -> Void
@@ -971,16 +1028,7 @@ private struct ShortcutField: View {
                         .font(.system(size: 12, weight: .medium))
                         .foregroundStyle(Color.accentColor)
                 } else if let combo {
-                    ForEach(Array(combo.caps.enumerated()), id: \.offset) { _, cap in
-                        Text(cap)
-                            .font(.system(size: 12, weight: .medium))
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(RoundedRectangle(cornerRadius: 5, style: .continuous)
-                                .fill(Color.primary.opacity(0.08)))
-                            .overlay(RoundedRectangle(cornerRadius: 5, style: .continuous)
-                                .strokeBorder(Color.primary.opacity(0.12)))
-                    }
+                    ComboCaps(combo: combo)
                 } else {
                     Text("Not set").foregroundStyle(.secondary)
                 }
@@ -991,5 +1039,25 @@ private struct ShortcutField: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(Pressable())
+    }
+}
+
+/// A shortcut's keys, a cap each.
+struct ComboCaps: View {
+    let combo: KeyCombo
+
+    var body: some View {
+        HStack(spacing: 4) {
+            ForEach(Array(combo.caps.enumerated()), id: \.offset) { _, cap in
+                Text(cap)
+                    .font(.system(size: 12, weight: .medium))
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(RoundedRectangle(cornerRadius: 5, style: .continuous)
+                        .fill(Color.primary.opacity(0.08)))
+                    .overlay(RoundedRectangle(cornerRadius: 5, style: .continuous)
+                        .strokeBorder(Color.primary.opacity(0.12)))
+            }
+        }
     }
 }

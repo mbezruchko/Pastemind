@@ -20,6 +20,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     /// Quick Look is search's (see `beginPreviewPanelControl`).
     private var searchLooks = false
     private var settings: SettingsWindowController!
+    private var welcome: WelcomeWindowController!
     /// Sparkle: new versions from GitHub Releases.
     private(set) var updater: Updater!
     private var statusItem: NSStatusItem!
@@ -70,6 +71,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         launcher = LauncherController(app: self, host: host)
         updater = Updater()
         settings = SettingsWindowController(app: self)
+        welcome = WelcomeWindowController(app: self)
         watcher.onCapture = { [weak self] capture, source in self?.record(capture, from: source) }
         watcher.onIncoming = { [weak self] source in self?.setIncoming(source) }
         watcher.start()
@@ -84,7 +86,12 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
             MainActor.assumeIsolated { self?.prune() }
         }
         startModel()
-        DebugHooks.install(panel: panel, launcher: launcher, settings: settings, app: self) { [weak self] action in
+        // A new install: the welcome, once (an update with a history has no need of it).
+        if !Settings.welcomed, !DebugHooks.enabled {
+            Settings.welcomed = true
+            if index.count == 0 { welcome.showFirstTime() }
+        }
+        DebugHooks.install(panel: panel, launcher: launcher, settings: settings, welcome: welcome, app: self) { [weak self] action in
             action == .search ? self?.toggleSearch() : self?.toggleClipboard()
         }
         if ProcessInfo.processInfo.arguments.contains("--show") { panel.show() }
@@ -165,6 +172,26 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         self.download = download
         download.start()
         panel.statusChanged()
+    }
+
+    /// Where one of the model's files is: on disk, coming, waiting for the one coming, or not come (the text model's
+    /// download failed).
+    enum ModelProgress: Equatable {
+        case ready, downloading(Double), waiting, failed
+    }
+
+    func progress(of file: ModelFile) -> ModelProgress {
+        if download?.file.name == file.name { return .downloading(downloadProgress ?? 0) }
+        if file.located != nil { return .ready }
+        if file.name == ModelFiles.text.name, case .failed = modelState { return .failed }
+        return .waiting
+    }
+
+    /// The text model's download tried again (it failed).
+    func retryModel() {
+        guard case .failed = modelState, ModelFiles.text.located == nil, download == nil else { return }
+        modelState = .idle
+        startModel()
     }
 
     private func modelStateChanged(_ state: EmbeddingEngine.State) {

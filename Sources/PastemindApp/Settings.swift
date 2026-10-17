@@ -43,6 +43,12 @@ enum Settings {
 
     nonisolated static let searchFileContentsKey = "searchFileContents"
 
+    /// The welcome window's been shown (a new install opens with it).
+    static var welcomed: Bool {
+        get { defaults.bool(forKey: "welcomed") }
+        set { defaults.set(newValue, forKey: "welcomed") }
+    }
+
     /// Reading files paused from the menu.
     static var filesPaused: Bool {
         get { defaults.bool(forKey: filesPausedKey) }
