@@ -502,7 +502,11 @@ struct ClipPreview: View {
             .background(AnchorView(anchor: anchor))
             .padding(14)
         case .text:
+            // What Quick Look zooms out of, gone from here meanwhile, as a picture.
             PreviewText(text: previewText, query: query, lineSpacing: 4, inset: NSSize(width: 18, height: 16))
+                .opacity(lifted ? 0 : 1)
+                .animation(liftFade, value: lifted)
+                .background(AnchorView(anchor: anchor))
         }
     }
 

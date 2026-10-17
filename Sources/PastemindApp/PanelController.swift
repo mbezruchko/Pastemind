@@ -336,14 +336,15 @@ final class PanelController {
     /// zooms out of it and back into it. Nowhere for a clip without one (the panel follows the selection onto text,
     /// and closes): it fades.
     private func previewFrame(_ index: Int) -> NSRect {
-        guard let clip = selectedClip, [.image, .file, .code].contains(clip.kind) else { return .zero }
+        guard let clip = selectedClip, [.image, .file, .code, .text].contains(clip.kind) else { return .zero }
         if showsFileGrid { return quickLookFile(index).flatMap { fileAnchor($0.path).frame } ?? .zero }
         return pictureAnchor.frame ?? .zero
     }
 
-    /// Code's block in the pane, as Quick Look zooms out of it: its first lines on the text background (Quick Look's
-    /// own, for text), in the block's rounded shape. A bitmap, as the picture's.
-    private func codeImage(_ clip: Clip) -> NSImage? {
+    /// Code's block (or text) in the pane, as Quick Look zooms out of it: its first lines on the text background
+    /// (Quick Look's own, for text), in the block's rounded shape. A bitmap, as the picture's.
+    private func textImage(_ clip: Clip) -> NSImage? {
+        let code = clip.kind == .code
         guard let size = pictureAnchor.frame?.size, size.width > 0, size.height > 0 else { return nil }
         let scale = window?.backingScaleFactor ?? 2
         guard let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: Int(size.width * scale),
@@ -359,13 +360,15 @@ final class PanelController {
             NSColor.textBackgroundColor.setFill()
             shape.fill()
             shape.addClip()
+            // As the pane sets each: code's lines kept whole, text wrapped.
             let paragraph = NSMutableParagraphStyle()
-            paragraph.lineSpacing = 3
-            paragraph.lineBreakMode = .byClipping
+            paragraph.lineSpacing = code ? 3 : 4
+            paragraph.lineBreakMode = code ? .byClipping : .byWordWrapping
+            let font = code ? NSFont.monospacedSystemFont(ofSize: 12, weight: .regular) : .systemFont(ofSize: 13.5)
             NSAttributedString(string: String(clip.text.prefix(4_000)), attributes: [
-                .font: NSFont.monospacedSystemFont(ofSize: 12, weight: .regular), .foregroundColor: NSColor.labelColor,
-                .paragraphStyle: paragraph,
-            ]).draw(with: rect.insetBy(dx: 12, dy: 12), options: [.usesLineFragmentOrigin])
+                .font: font, .foregroundColor: NSColor.labelColor, .paragraphStyle: paragraph,
+            ]).draw(with: code ? rect.insetBy(dx: 12, dy: 12) : rect.insetBy(dx: 18, dy: 16),
+                    options: [.usesLineFragmentOrigin])
         }
         NSGraphicsContext.restoreGraphicsState()
         let image = NSImage(size: size)
@@ -390,7 +393,7 @@ final class PanelController {
 
     private func previewImage(_ index: Int) -> NSImage? {
         guard let clip = selectedClip else { return nil }
-        if clip.kind == .code { return codeImage(clip) }
+        if clip.kind == .code || clip.kind == .text { return textImage(clip) }
         let picture: NSImage
         var frame = pictureAnchor.frame
         if showsFileGrid {

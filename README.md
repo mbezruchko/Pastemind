@@ -40,7 +40,7 @@ Spotlight), or pick another shortcut for search in Settings.
 | ⌘↩ | Copies without pasting |
 | ⌘1…⌘9 | Pastes that row |
 | ⌘P | Pins or unpins (pinned clips stay at the top and never expire) |
-| ⇧ (a tap), ⌘Y | Quick Look of a picture, files or code (again, Space or Esc closes it) |
+| ⇧ (a tap), ⌘Y | Quick Look of a picture, files, code or text (again, Space or Esc closes it) |
 | ← → | In Quick Look of several copied files: the previous or next one |
 | ⌘⌫ | Deletes the clip |
 | Esc | Clears the query, then closes |

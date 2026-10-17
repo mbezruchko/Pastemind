@@ -45,7 +45,8 @@ final class QuickLook: NSObject, QLPreviewPanelDataSource, QLPreviewPanelDelegat
     private var swapping: (lifted: Bool, index: Int, picture: CGRect, started: CFTimeInterval, sawCopy: Bool)?
 
     /// What Quick Look shows for a clip: the picture's file (titled "Image · Zed · Today at 17:56", not by its
-    /// stored name), the files that are still there, or code (written to a file for it). Nothing for other text.
+    /// stored name), the files that are still there, or code and text (written to a file for it). Nothing for links
+    /// and colours.
     static func items(for clip: Clip?) -> [Item] {
         guard let clip else { return [] }
         let title = [clip.typeName, clip.appName, When.long(clip.lastCopied)].compactMap { $0 }.joined(separator: " · ")
@@ -55,20 +56,21 @@ final class QuickLook: NSObject, QLPreviewPanelDataSource, QLPreviewPanelDelegat
             return [Item(AppPaths.images.appendingPathComponent(name), title: title)]
         case .file:
             return clip.fileURLs.filter { FileManager.default.fileExists(atPath: $0.path) }.map { Item($0) }
-        case .code:
-            return codeFile(for: clip).map { [Item($0, title: title)] } ?? []
+        case .code, .text:
+            return textFile(for: clip).map { [Item($0, title: title)] } ?? []
         default:
             return []
         }
     }
 
-    /// Where code goes for Quick Look, which shows files: the user's own temporary folder, emptied at launch.
+    /// Where code and text go for Quick Look, which shows files: the user's own temporary folder, emptied at launch.
     static let codeFolder = FileManager.default.temporaryDirectory.appendingPathComponent("Pastemind Quick Look",
                                                                                          isDirectory: true)
 
-    /// Coloured as the preview has it (a web page, light or dark as the system is), when it is; else text.
-    private static func codeFile(for clip: Clip) -> URL? {
-        let syntax = Settings.highlightsCode ? CodeHighlighter.shared.known(clip.text, appID: clip.appID) : nil
+    /// Code coloured as the preview has it (a web page, light or dark as the system is), when it is; else text.
+    private static func textFile(for clip: Clip) -> URL? {
+        let colours = clip.kind == .code && Settings.highlightsCode
+        let syntax = colours ? CodeHighlighter.shared.known(clip.text, appID: clip.appID) : nil
         let url = codeFolder.appendingPathComponent("\(clip.id).\(syntax == nil ? "txt" : "html")")
         do {
             try FileManager.default.createDirectory(at: codeFolder, withIntermediateDirectories: true)
