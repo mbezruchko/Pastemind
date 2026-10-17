@@ -453,8 +453,9 @@ final class LauncherController {
             flushResults()
             if modifiers == .command { reveal() } else if modifiers.isEmpty { open() } else { return false }
             return true
-        case 8 where modifiers == .command:  // ⌘C: the path, unless some of the query is selected
+        case 8 where modifiers == .command:  // ⌘C: the path, unless some of the query is selected or Quick Look is up
             if (field?.currentEditor()?.selectedRange.length ?? 0) > 0 { return false }
+            if quickLook.copySelection() { return true }
             flushResults()
             copyPath()
             return true
