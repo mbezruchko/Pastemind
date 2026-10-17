@@ -739,7 +739,8 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     /// A main menu, never shown (an accessory app has no menu bar), for Quick Look: what's selected of a picture's text
     /// there (Live Text) is copied by Edit → Copy, as in Finder. The preview is drawn, and its text selected, in a
-    /// process of its own, and ⌘C reaches it only through a menu item. The panels take their edit keys themselves.
+    /// process of its own, and ⌘C reaches it only as an action: this item's while Quick Look has the key, the
+    /// history's (`QuickLook.copySelection`) while the history keeps it. The panels take their edit keys themselves.
     private func makeMainMenu() {
         // Without AppKit's own additions to an Edit menu, which it otherwise adds again on each update.
         UserDefaults.standard.register(defaults: ["NSDisabledDictationMenuItem": true,

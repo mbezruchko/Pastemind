@@ -869,8 +869,8 @@ final class PanelController {
                 paste(plain: false)
             }
             return true
-        case 8 where modifiers == .command:  // ⌘C: what's selected in the preview; else the field's, through the window
-            return copyPreviewSelection()
+        case 8 where modifiers == .command:  // ⌘C: the preview's selection, or Quick Look's; else the field's, via the window
+            return copyPreviewSelection() || quickLook.copySelection()
         case 43 where modifiers == .command:  // ⌘,: Settings (the way there when the menu bar icon is hidden)
             app.openSettings()
             return true
@@ -1331,7 +1331,7 @@ final class PanelWindow: NSPanel {
 
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
         let modifiers = event.modifierFlags.intersection(KeyModifiers.relevant)
-        if let (wanted, action) = Self.editKeys[event.keyCode], modifiers == wanted,
+        if let (wanted, action) = Self.editKeys[event.keyCode], modifiers == wanted, enables(action),
            NSApp.sendAction(action, to: nil, from: self) {
             return true
         }
@@ -1340,6 +1340,14 @@ final class PanelWindow: NSPanel {
             return true
         }
         return super.performKeyEquivalent(with: event)
+    }
+
+    /// Whether an Edit menu's item for the action would be enabled: one sent without asking is taken anyway, and a
+    /// text's copy with nothing selected empties the clipboard.
+    private func enables(_ action: Selector) -> Bool {
+        guard let target = NSApp.target(forAction: action, to: nil, from: self) else { return false }
+        guard let validation = target as? NSMenuItemValidation else { return true }
+        return validation.validateMenuItem(NSMenuItem(title: "", action: action, keyEquivalent: ""))
     }
 
 }

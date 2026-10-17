@@ -99,6 +99,14 @@ final class QuickLook: NSObject, QLPreviewPanelDataSource, QLPreviewPanelDelegat
         return true
     }
 
+    /// What's selected of the preview's text (a picture's, by Live Text), copied: false when the panel isn't up. The
+    /// history keeps the keyboard (`becomesKeyOnlyIfNeeded`), so its ⌘C comes here; the panel's view hands the copy to
+    /// the process that draws the preview and holds the selection.
+    func copySelection() -> Bool {
+        guard isVisible else { return false }
+        return QLPreviewPanel.shared().firstResponder?.tryToPerform(#selector(NSText.copy(_:)), with: nil) ?? false
+    }
+
     /// The item the panel shows.
     private var current: Int {
         guard QLPreviewPanel.sharedPreviewPanelExists() else { return startIndex }
