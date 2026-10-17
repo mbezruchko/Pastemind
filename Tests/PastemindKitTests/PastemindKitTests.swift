@@ -103,9 +103,10 @@ enum TestDatabase {
         #expect(index.search("image").map(\.id) == [1])
     }
 
-    @Test func startOfTextRanksFirst() {
+    /// As the history lists them: what has the query in it, wherever, the most recent first.
+    @Test func theMostRecentMatchRanksFirst() {
         let index = index(["a deploy script", "deploy now"])
-        #expect(index.search("deploy").first?.id == 2)
+        #expect(index.search("deploy").map(\.id) == [1, 2])
     }
 
     @Test func changesAreSearchable() {
@@ -206,6 +207,19 @@ enum TestDatabase {
         let results = index.search("something", vector: vector([0: 1]), now: now)
         #expect(results.map(\.id) == [1, 2])
         #expect(results.allSatisfy { !$0.words })
+    }
+
+    /// Every link has "http" in it: the one copied a minute ago first, though the model finds yesterday's closer; a
+    /// clip only close in meaning after them.
+    @Test func wordMatchesGoByRecencyNotMeaning() {
+        let now = Date()
+        let index = ClipIndex()
+        index.load([
+            Clip(id: 1, kind: .link, text: "https://scalar.usc.edu/works/adobe", lastCopied: now.addingTimeInterval(-60)),
+            Clip(id: 2, kind: .link, text: "http://127.0.0.1:8765/", lastCopied: now.addingTimeInterval(-86_400)),
+            Clip(id: 3, kind: .text, text: "protocols", lastCopied: now),
+        ], vectors: [(1, vector([0: 1, 1: 1])), (2, vector([0: 1, 1: 0.1])), (3, vector([0: 1, 1: 0.05]))])
+        #expect(index.search("http", vector: vector([0: 1]), now: now).map(\.id) == [1, 2, 3])
     }
 
     @Test func nothingWhenNothingStandsOutOfTheCrowd() {

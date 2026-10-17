@@ -122,7 +122,7 @@ copy ─► ClipboardWatcher (reads changeCount 4×/s) ─► SQLite (pastemind.
                                                   └► EmbeddingEngine: EmbeddingGemma 2, a vector per clip
 keystroke ─► words: one memchr scan over all clips' folded text          ~0.5 ms / 10k clips
           └► meaning: query vector (~20 ms) ─► one matrix-vector product  ~1 ms / 10k clips
-              └► ranked together, shown ~50 ms after the keystroke
+              └► meaning matches under the word ones, shown ~50 ms after the keystroke
 ```
 
 - Motion runs at the display's rate (120 Hz on ProMotion): the window's edge moves on its `CADisplayLink`, one step
@@ -133,7 +133,9 @@ keystroke ─► words: one memchr scan over all clips' folded text          ~0.
   lands there with no focus juggling. It's built and drawn once at launch; opening it takes ~15 ms.
 - Word matches show on every keystroke at once. The query is embedded at the same time, and the hybrid results
   replace them 50 ms after the keystroke, so the list doesn't reshuffle while you type.
-- Ranking: cosine + 0.4 × word match + a little recency. EmbeddingGemma 2 gives unrelated clips ~0.6–0.7 and good
+- Ranking: what has the query in it first, the most recent first, as the history lists it ("http" puts the link
+  copied a minute ago first); then the app's name or every word apart, also by recency; then what's only close in
+  meaning, by cosine + a little recency. EmbeddingGemma 2 gives unrelated clips ~0.6–0.7 and good
   matches ~0.7–0.87, so a meaning match has to be within 0.1 of the best one to show, and within 0.045 to show at
   full strength (`ClipIndex.Tuning`, calibrated with `pastemind-cli eval`).
 - A short clip (a word, "thanks", a chat line) comes close to any short query, whatever it asks. So a meaning match

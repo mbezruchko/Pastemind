@@ -201,7 +201,9 @@ public final class ClipIndex {
     // MARK: Search
 
     /// Word matches (the whole query as typed, or every word of it, anywhere in the text) and, with `vector`, meaning
-    /// matches, ranked together. Without a query vector it's words only, the most recent first among equals.
+    /// matches. What has the query in it comes first, the most recent first (as the history lists it: "http" puts the
+    /// link copied a minute ago above yesterday's); then the app's name or every word apart, also the most recent
+    /// first; then what's only close in meaning, the closest first. Meaning results arriving don't reorder the words'.
     public func search(_ query: String, vector: [Float]? = nil, limit: Int = 80, now: Date = Date()) -> [SearchResult] {
         let phrase = Self.fold(query.trimmingCharacters(in: .whitespacesAndNewlines))
         guard !phrase.isEmpty else { return [] }
@@ -281,7 +283,7 @@ public final class ClipIndex {
         let partialWords = words.filter { $0.count >= 3 }
 
         // Score the candidates cheaply; only the ones shown become results.
-        var candidates: [(score: Double, id: Int64, words: Bool, cosine: Float?)] = []
+        var candidates: [(score: Double, id: Int64, words: Bool, cosine: Float?, group: Int, copied: Date)] = []
         candidates.reserveCapacity(wordScores.count + meaningful.count)
         func consider(_ id: Int64, wordScore: Double, cosine known: Float?) {
             guard let clip = byID[id] else { return }
@@ -304,23 +306,25 @@ public final class ClipIndex {
             } else {
                 score = wordScore + 0.3 * recency
             }
-            candidates.append((score, id, wordScore > 0, cosine))
+            // The query in the text (1–1.15: at its start, a word's, anywhere); the app's name (0.9); every word (0.7).
+            let group = wordScore >= 1 ? 3 : wordScore >= 0.9 ? 2 : wordScore > 0 ? 1 : 0
+            candidates.append((score, id, wordScore > 0, cosine, group, clip.lastCopied))
+        }
+        func before(_ a: (score: Double, id: Int64, words: Bool, cosine: Float?, group: Int, copied: Date),
+                    _ b: (score: Double, id: Int64, words: Bool, cosine: Float?, group: Int, copied: Date)) -> Bool {
+            if a.group != b.group { return a.group > b.group }
+            if a.group > 0 || a.score == b.score { return a.copied > b.copied }
+            return a.score > b.score
         }
         for (id, wordScore) in wordScores { consider(id, wordScore: wordScore, cosine: meaningful[id]) }
         for (id, cosine) in meaningful where wordScores[id] == nil { consider(id, wordScore: 0, cosine: cosine) }
 
-        let top = candidates.count > limit * 4
-            ? Array(candidates.sorted { $0.score > $1.score }.prefix(limit * 2))
-            : candidates
-        return top.compactMap { candidate -> SearchResult? in
+        return candidates.sorted(by: before).prefix(limit).compactMap { candidate -> SearchResult? in
             guard let clip = byID[candidate.id] else { return nil }
             let strong = candidate.words || !hasMeaning || (candidate.cosine ?? 0) >= strongBar
             return SearchResult(clip: clip, score: candidate.score, words: candidate.words, meaning: candidate.cosine,
                                 strong: strong, file: candidate.words ? nil : matchedFile[candidate.id])
         }
-        .sorted { $0.score != $1.score ? $0.score > $1.score : $0.clip.lastCopied > $1.clip.lastCopied }
-        .prefix(limit)
-        .map { $0 }
     }
 
     /// `word` at the start of `text` or of a word in it.
