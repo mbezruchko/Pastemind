@@ -1,5 +1,6 @@
 import CryptoKit
 import Foundation
+import UniformTypeIdentifiers
 
 public enum ClipKind: String, Sendable, CaseIterable {
     case text, link, code, color, image, file
@@ -63,21 +64,27 @@ public struct Clip: Identifiable, Sendable, Hashable {
         self.contentVector = contentVector
     }
 
-    /// The first line with something on it, for the list; for a picture, what it is: "Image: 1400×820 (14 KB)".
+    /// The first line with something on it, for the list; for a picture, what it is: "Image: 1400×820 (14 KB)", a
+    /// picture file too (its name until it's measured).
     public var title: String {
         switch kind {
         case .image:
-            let size = width.flatMap { w in height.map { h in "\(w)×\(h)" } }
-            let weight = bytes.map { "(\(ByteCountFormatter.string(fromByteCount: Int64($0), countStyle: .file)))" }
-            let details = [size, weight].compactMap { $0 }.joined(separator: " ")
-            return details.isEmpty ? typeName : "\(typeName): \(details)"
+            return pictureTitle ?? typeName
         case .file:
             let paths = text.split(separator: "\n")
             let first = paths.first.map { URL(fileURLWithPath: String($0)).lastPathComponent } ?? "File"
+            if isPictureFile { return pictureTitle ?? "\(typeName): \(first)" }
             return paths.count > 1 ? "\(first) + \(paths.count - 1) more" : first
         default:
             return Self.firstLine(of: text)
         }
+    }
+
+    private var pictureTitle: String? {
+        let size = width.flatMap { w in height.map { h in "\(w)×\(h)" } }
+        let weight = bytes.map { "(\(ByteCountFormatter.string(fromByteCount: Int64($0), countStyle: .file)))" }
+        let details = [size, weight].compactMap { $0 }.joined(separator: " ")
+        return details.isEmpty ? nil : "\(typeName): \(details)"
     }
 
     /// What it is, in a word, for the list: "Image", "Text", "3 files". Every picture is an image, screenshots too.
@@ -89,14 +96,43 @@ public struct Clip: Identifiable, Sendable, Hashable {
         case .color: return "Color"
         case .image: return "Image"
         case .file:
+            if isPictureFile { return "Image" }
             let count = text.split(separator: "\n").count
             return count > 1 ? "\(count) files" : "File"
         }
     }
 
-    public var fileURLs: [URL] {
+    /// One copied file that's a picture (a photo, a screenshot, a GIF): an image as much as a copied picture is,
+    /// shown, found and kept to by "image:" as one, while it still pastes and drags as the file.
+    public var isPictureFile: Bool {
+        kind == .file && !text.contains("\n") && Self.isPicture(path: text)
+    }
+
+    public static func isPicture(path: String) -> Bool {
+        UTType(filenameExtension: (path as NSString).pathExtension)?.conforms(to: .image) == true
+    }
+
+    /// A kind filter ("image:", "files:") keeps it: of its kind, or a picture file wanted as an image.
+    public func isKept(by kinds: Set<ClipKind>) -> Bool {
+        kinds.contains(kind) || (kinds.contains(.image) && isPictureFile)
+    }
+
+    /// Where its files were copied from: what to show as where each one is.
+    public var copiedURLs: [URL] {
         guard kind == .file else { return [] }
         return text.split(separator: "\n").map { URL(fileURLWithPath: String($0)) }
+    }
+
+    /// Its files to paste, drag and show: each where it was copied from while it's there, else Pastemind's copy of it
+    /// (`KeptFiles`).
+    public var fileURLs: [URL] { fileURLs(keptIn: AppPaths.keptFiles) }
+
+    public func fileURLs(keptIn folder: URL) -> [URL] {
+        copiedURLs.enumerated().map { index, url in
+            if FileManager.default.fileExists(atPath: url.path) { return url }
+            let kept = KeptFiles.url(clip: id, index: index, name: url.lastPathComponent, in: folder)
+            return FileManager.default.fileExists(atPath: kept.path) ? kept : url
+        }
     }
 
     /// Text that goes to the model: the start of it is enough to know what it's about, and keeps embedding fast.
@@ -105,7 +141,7 @@ public struct Clip: Identifiable, Sendable, Hashable {
         guard !trimmed.isEmpty else { return nil }
         switch kind {
         case .file:
-            return fileURLs.map { $0.lastPathComponent }.joined(separator: ", ")
+            return copiedURLs.map { $0.lastPathComponent }.joined(separator: ", ")
         case .image:
             return "screenshot with text: " + String(trimmed.prefix(Self.embeddingCharacters))
         default:

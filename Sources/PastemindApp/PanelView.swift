@@ -368,13 +368,47 @@ struct ClipPreview: View {
                     .textSelection(.enabled)
             }
             .padding(16)
+        case .file where clip.isPictureFile:
+            // A picture copied as its file: shown as a copied picture is, the pane's size, with where it is under it.
+            let url = clip.fileURLs[0], copied = clip.copiedURLs[0]
+            VStack(alignment: .leading, spacing: 10) {
+                if let cover = fileCover {
+                    Image(nsImage: cover)
+                        .resizable()
+                        .scaledToFit()
+                        .clipShape(Self.pictureShape)
+                        .opacity(lifted ? 0 : 1)
+                        .animation(liftFade, value: lifted)
+                        .background(AnchorView(anchor: anchor))
+                        .overlay(dragSource(ClipDrag.writers(forFile: url), image: cover))
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    Image(nsImage: Icons.file(url)).resizable().frame(width: 48, height: 48)
+                        .background(AnchorView(anchor: anchor))
+                    Spacer(minLength: 0)
+                }
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(copied.lastPathComponent).font(.system(size: 12, weight: .medium))
+                    Text((copied.deletingLastPathComponent().path as NSString).abbreviatingWithTildeInPath)
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                        .truncationMode(.head)
+                        .lineLimit(1)
+                }
+            }
+            .padding(16)
+            .task(id: Thumbnails.mediaPath(of: clip)) {
+                guard let path = Thumbnails.mediaPath(of: clip),
+                      let image = await Thumbnails.shared.load(path, side: Thumbnails.coverSide) else { return }
+                cover = (path, image)
+            }
         case .file where clip.fileURLs.count > 1:
             FileGrid(urls: clip.fileURLs, anchor: fileAnchor, lifted: lifted ? liftedFile : nil, lookAt: lookAt,
                      dragBegan: dragBegan, dragEnded: dragEnded)
         case .file:
             ScrollView {
                 VStack(alignment: .leading, spacing: 8) {
-                    // A video, a GIF or a picture: a frame of it on top, where Quick Look opens from.
+                    // A video: a frame of it on top, where Quick Look opens from.
                     if let cover = fileCover {
                         Image(nsImage: cover)
                             .resizable()
@@ -389,7 +423,9 @@ struct ClipPreview: View {
                             .frame(maxWidth: .infinity, maxHeight: 240)
                             .padding(.bottom, 6)
                     }
-                    ForEach(Array(clip.fileURLs.enumerated()), id: \.element) { index, url in
+                    // Each where it was copied from, Pastemind's copy standing in for one that's gone.
+                    ForEach(Array(zip(clip.fileURLs, clip.copiedURLs).enumerated()), id: \.element.0) { index, urls in
+                        let (url, copied) = urls
                         let anchored = index == 0 && fileCover == nil
                         HStack(spacing: 10) {
                             Image(nsImage: Icons.file(url)).resizable().frame(width: 32, height: 32)
@@ -397,8 +433,8 @@ struct ClipPreview: View {
                                 .animation(liftFade, value: lifted)
                                 .background { if anchored { AnchorView(anchor: anchor) } }
                             VStack(alignment: .leading, spacing: 1) {
-                                Text(url.lastPathComponent).font(.system(size: 13, weight: .medium))
-                                Text((url.deletingLastPathComponent().path as NSString).abbreviatingWithTildeInPath)
+                                Text(copied.lastPathComponent).font(.system(size: 13, weight: .medium))
+                                Text((copied.deletingLastPathComponent().path as NSString).abbreviatingWithTildeInPath)
                                     .font(.system(size: 11))
                                     .foregroundStyle(.secondary)
                                     .truncationMode(.head)
@@ -516,10 +552,9 @@ struct ClipPreview: View {
         parts.append(When.long(clip.lastCopied))
         if clip.copies > 1 { parts.append("copied \(clip.copies)×") }
         switch clip.kind {
-        case .image:
+        case .image, .file:
+            // A file's only when it's a picture; else the type says how many.
             if let width = clip.width, let height = clip.height { parts.append("\(width)×\(height)") }
-        case .file:
-            break   // the type says how many
         default:
             let (characters, lines) = Self.measure(clip)
             parts.append(characters == 1 ? "1 character" : "\(characters.formatted()) characters")

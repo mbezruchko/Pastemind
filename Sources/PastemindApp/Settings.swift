@@ -1,4 +1,5 @@
 import AppKit
+import PastemindKit
 
 /// Preferences, in UserDefaults (`defaults write app.pastemind.Pastemind <key> <value>`).
 enum Settings {
@@ -56,6 +57,15 @@ enum Settings {
         set { defaults.set(newValue, forKey: "showMenuBarIcon") }
     }
 
+
+    /// Copied files are kept (`KeptFiles`) when they take up to this many megabytes in all; 0 keeps none.
+    static var keptFilesMegabytes: Int {
+        get {
+            guard defaults.object(forKey: "keptFilesMegabytes") != nil else { return KeptFiles.defaultMaxBytes >> 20 }
+            return max(defaults.integer(forKey: "keptFilesMegabytes"), 0)
+        }
+        set { defaults.set(newValue, forKey: "keptFilesMegabytes") }
+    }
 
     /// Unpinned clips older than this many days go.
     static var historyDays: Int {

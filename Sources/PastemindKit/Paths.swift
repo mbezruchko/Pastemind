@@ -18,9 +18,11 @@ public enum AppPaths {
     /// Smaller copies of the pictures, at the sizes they're drawn.
     public static var thumbnails: URL { home.appendingPathComponent("Thumbnails") }
     public static var models: URL { home.appendingPathComponent("Models") }
+    /// Copies of copied files (`KeptFiles`).
+    public static var keptFiles: URL { home.appendingPathComponent("Files") }
 
     public static func prepare() throws {
-        for folder in [home, images, thumbnails, models] {
+        for folder in [home, images, thumbnails, models, keptFiles] {
             try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         }
     }

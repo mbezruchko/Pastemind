@@ -50,6 +50,11 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         try? FileManager.default.removeItem(at: QuickLook.codeFolder)   // code written for Quick Look last time
         try? FileManager.default.removeItem(at: PictureFiles.folder)    // pictures dragged or pasted as files last time
         measurePictures()
+        let (fileClips, keptBytes) = (fileClips, Settings.keptFilesMegabytes << 20)
+        KeptFiles.queue.async {
+            KeptFiles.removeAll(except: Set(fileClips.map(\.id)))
+            if keptBytes > 0 { KeptFiles.keepEarlier(fileClips, maxBytes: keptBytes) }
+        }
         engine = EmbeddingEngine(
             onVectors: { [weak self] vectors in self?.received(vectors) },
             onFileVector: { [weak self] path, vector, pieces in self?.files.received(path, vector, pieces: pieces) },
@@ -235,7 +240,19 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
             }
         case .files(let urls):
             let text = urls.map(\.path).joined(separator: "\n")
-            save(kind: .file, text: text, hash: ClipClassifier.hash(kind: .file, text: text), source: source)
+            let hash = ClipClassifier.hash(kind: .file, text: text)
+            guard urls.count == 1, Clip.isPicture(path: text) else {
+                save(kind: .file, text: text, hash: hash, source: source)
+                return
+            }
+            // A picture file is titled by its size, as a copied picture is: its header read off the main thread.
+            Task.detached(priority: .userInitiated) {
+                let size = Pictures.measure(urls[0])
+                await MainActor.run {
+                    _ = self.save(kind: .file, text: text, hash: hash, source: source, width: size?.width,
+                                  height: size?.height, bytes: size?.bytes)
+                }
+            }
         case .image(let data, let ext):
             // Hashing, writing and reading a big screenshot take a moment: off the main thread.
             Task.detached(priority: .userInitiated) {
@@ -259,6 +276,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
                                             appName: source.appName, image: image, width: width, height: height,
                                             bytes: bytes, rich: rich?.data, richType: rich?.type)
             index.upsert(recorded.clip)
+            if kind == .file { keepFiles(of: recorded.clip) }
             // A new picture's vector waits for Vision to read its text (readText).
             if !(kind == .image && recorded.clip.text.isEmpty) { embed(recorded.clip) }
             panel.historyChanged()
@@ -269,20 +287,41 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
     }
 
-    /// Pictures saved before their sizes were kept (the list shows them): their files measured once, in the background.
+    /// The file clips, and where their files were copied from: for their copies (`KeptFiles`).
+    var fileClips: [(id: Int64, urls: [URL])] {
+        index.clips.filter { $0.kind == .file }.map { ($0.id, $0.copiedURLs) }
+    }
+
+    /// Pastemind's copy of a clip's files (`KeptFiles`), so it still pastes them once they're moved or deleted; made
+    /// again on each copy (they may have changed), and dropped if the clip went meanwhile.
+    private func keepFiles(of clip: Clip) {
+        let (id, text, urls, limit) = (clip.id, clip.text, clip.copiedURLs, Settings.keptFilesMegabytes << 20)
+        guard limit > 0 else { return }   // off in Settings
+        KeptFiles.queue.async {
+            KeptFiles.keep(urls, for: id, maxBytes: limit)
+            Task { @MainActor in
+                guard self.index.clip(id: id)?.text != text else { return }
+                KeptFiles.queue.async { KeptFiles.remove([id]) }
+            }
+        }
+    }
+
+    /// Pictures, and picture files, saved before their sizes were kept (the list shows them): measured once, in the
+    /// background. A picture file that's gone stays as it was.
     private func measurePictures() {
-        guard let pictures = try? store.imagesWithoutBytes(), !pictures.isEmpty else { return }
+        guard let pictures = try? store.unmeasuredPictures(), !pictures.isEmpty else { return }
         Task.detached(priority: .utility) {
-            let sizes = pictures.compactMap { picture -> (id: Int64, bytes: Int)? in
-                let path = AppPaths.images.appendingPathComponent(picture.image).path
-                guard let size = (try? FileManager.default.attributesOfItem(atPath: path))?[.size] as? Int else { return nil }
-                return (picture.id, size)
+            let sizes = pictures.compactMap { picture -> (id: Int64, width: Int?, height: Int?, bytes: Int)? in
+                let url = picture.image.map { AppPaths.images.appendingPathComponent($0) } ?? picture.fileURLs.first
+                guard let url, let size = Pictures.measure(url) else { return nil }
+                return (picture.id, size.width, size.height, size.bytes)
             }
             await MainActor.run {
                 for size in sizes {
-                    try? self.store.setBytes(id: size.id, size.bytes)
+                    try? self.store.setSize(id: size.id, width: size.width, height: size.height, bytes: size.bytes)
                     guard var clip = self.index.clip(id: size.id) else { continue }
-                    clip.bytes = size.bytes
+                    (clip.width, clip.height, clip.bytes) = (clip.width ?? size.width, clip.height ?? size.height,
+                                                             size.bytes)
                     self.index.update(clip)
                 }
                 self.panel.historyChanged()
@@ -494,8 +533,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     func delete(_ clip: Clip) {
-        let images = (try? store.delete(ids: [clip.id])) ?? []
-        removeImages(images)
+        removeFiles((try? store.delete(ids: [clip.id])) ?? [], of: [clip.id])
         index.remove([clip.id])
         panel.historyChanged()
     }
@@ -512,14 +550,16 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         (try? store.rich(id: clip.id)) ?? nil
     }
 
-    private func removeImages(_ names: [String]) {
-        for name in names { Pictures.remove(name) }
+    /// Deleted clips' pictures, and their copies of files.
+    private func removeFiles(_ images: [String], of ids: [Int64]) {
+        for name in images { Pictures.remove(name) }
+        KeptFiles.queue.async { KeptFiles.remove(ids) }
     }
 
     private func prune() {
         let cutoff = Date().addingTimeInterval(-Double(Settings.historyDays) * 86_400)
         guard let ids = try? store.expired(before: cutoff, keep: Settings.maxClips), !ids.isEmpty else { return }
-        removeImages((try? store.delete(ids: ids)) ?? [])
+        removeFiles((try? store.delete(ids: ids)) ?? [], of: ids)
         index.remove(Set(ids))
         panel.historyChanged()
         log("pruned \(ids.count) clips")
@@ -791,7 +831,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     func clearClips(since date: Date?) -> Int {
         let ids = clearableClips(since: date).map(\.id)
         guard !ids.isEmpty else { return 0 }
-        removeImages((try? store.delete(ids: ids)) ?? [])
+        removeFiles((try? store.delete(ids: ids)) ?? [], of: ids)
         index.remove(Set(ids))
         panel.historyChanged()
         return ids.count

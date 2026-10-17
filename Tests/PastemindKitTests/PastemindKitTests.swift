@@ -86,6 +86,23 @@ enum TestDatabase {
         #expect(Set(index.search("1").map(\.id)) == [1, 2])
     }
 
+    @Test func aPictureFileIsAnImage() {
+        let photo = Clip(id: 1, kind: .file, text: "/Users/me/Downloads/IMG_2034.HEIC")
+        let pdf = Clip(id: 2, kind: .file, text: "/Users/me/Downloads/lease.pdf")
+        let two = Clip(id: 3, kind: .file, text: "/a/one.png\n/a/two.png")
+        #expect(photo.isPictureFile && photo.typeName == "Image" && photo.isKept(by: [.image]) && photo.isKept(by: [.file]))
+        #expect(!pdf.isPictureFile && pdf.typeName == "File" && !pdf.isKept(by: [.image]))
+        #expect(!two.isPictureFile && two.typeName == "2 files")
+        // Titled as a copied picture once measured, by its name until then.
+        #expect(photo.title == "Image: IMG_2034.HEIC")
+        var measured = photo
+        (measured.width, measured.height) = (4032, 3024)
+        #expect(measured.title == "Image: 4032×3024")
+        let index = ClipIndex()
+        index.load([photo, pdf, Clip(id: 4, kind: .text, text: "a plain note")], vectors: [])
+        #expect(index.search("image").map(\.id) == [1])
+    }
+
     @Test func startOfTextRanksFirst() {
         let index = index(["a deploy script", "deploy now"])
         #expect(index.search("deploy").first?.id == 2)
@@ -335,10 +352,17 @@ enum TestDatabase {
         let older = try store.record(kind: .image, text: "", hash: "i2", appID: nil, appName: nil, image: "b.png",
                                      width: 2, height: 2)
         #expect(older.clip.title == "Image: 2×2")
-        #expect(try store.imagesWithoutBytes().map(\.id) == [older.clip.id])
-        try store.setBytes(id: older.clip.id, 2_048)
-        #expect(try store.imagesWithoutBytes().isEmpty)
-        #expect(try store.clip(id: older.clip.id)?.bytes == 2_048)
+        let photo = try store.record(kind: .file, text: "/a/IMG_1.HEIC", hash: "f1", appID: nil, appName: nil)
+        _ = try store.record(kind: .file, text: "/a/lease.pdf", hash: "f2", appID: nil, appName: nil)
+        #expect(try Set(store.unmeasuredPictures().map(\.id)) == [older.clip.id, photo.clip.id])
+        try store.setSize(id: older.clip.id, width: 9, height: 9, bytes: 2_048)
+        #expect(try store.clip(id: older.clip.id).map { [$0.width, $0.bytes] } == [2, 2_048])
+        // Copied again, measured again (the file may have changed).
+        _ = try store.record(kind: .file, text: "/a/IMG_1.HEIC", hash: "f1", appID: nil, appName: nil, width: 8,
+                             height: 6, bytes: 99)
+        #expect(try store.unmeasuredPictures().isEmpty)
+        let small = ByteCountFormatter.string(fromByteCount: 99, countStyle: .file)
+        #expect(try store.clip(id: photo.clip.id)?.title == "Image: 8×6 (\(small))")
     }
 
     /// Stores written while screenshots were told apart have a "screenshot" column (1 for screenshots): left unread.
@@ -878,5 +902,54 @@ extension SnippetTests {
         #expect(merged.map(\.item.name) == ["Safari", "lease.docx"])   // Safari isn't added twice
         #expect(merged.map(\.byContent) == [false, true])
         #expect(!LaunchRanker.hasStrongMatch(LaunchRanker.merge(LaunchQuery("договор"), catalog: catalog, files: [])))
+    }
+}
+
+@Suite struct KeptFilesTests {
+    /// A copied file still there is itself; once moved or deleted, Pastemind's copy stands in for it.
+    @Test func aGoneFileIsPastedFromItsCopy() throws {
+        let fm = FileManager.default
+        let root = fm.temporaryDirectory.appendingPathComponent("pastemind-kept-\(UUID().uuidString)")
+        defer { try? fm.removeItem(at: root) }
+        let kept = root.appendingPathComponent("Files")
+        let files = ["photo.png": 10, "notes/a.txt": 20, "server.pem": 10, "big.bin": 2_000, "keys/id_ed25519": 10]
+        for (path, size) in files {
+            let url = root.appendingPathComponent("copied/\(path)")
+            try fm.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try Data(repeating: 7, count: size).write(to: url)
+        }
+        let urls = ["photo.png", "notes", "server.pem", "big.bin", "keys"].map { root.appendingPathComponent("copied/\($0)") }
+        // Not a key, nor what's over the limit, nor a folder with a key in it.
+        #expect(KeptFiles.keep(urls, for: 7, in: kept, maxBytes: 1_000) == 2)
+        let clip = Clip(id: 7, kind: .file, text: urls.map(\.path).joined(separator: "\n"))
+        #expect(clip.fileURLs(keptIn: kept) == urls)
+
+        try fm.removeItem(at: urls[0])
+        try fm.moveItem(at: urls[1], to: root.appendingPathComponent("moved"))
+        try fm.removeItem(at: urls[2])
+        let resolved = clip.fileURLs(keptIn: kept)
+        #expect(resolved[0] == KeptFiles.url(clip: 7, index: 0, name: "photo.png", in: kept))
+        #expect(try Data(contentsOf: resolved[0]).count == 10)
+        #expect(fm.fileExists(atPath: resolved[1].appendingPathComponent("a.txt").path))
+        #expect(resolved[2] == urls[2])   // never kept: still where it was, gone
+        #expect(clip.copiedURLs.map(\.path) == urls.map(\.path) && clip.title == "photo.png + 4 more")
+
+        // Settings removes the copies of what's gone (the photo, the moved folder), not those of files still there.
+        let clips = [(id: Int64(7), urls: urls)]
+        #expect(KeptFiles.standIns(for: clips, in: kept).count == 2)
+        #expect(KeptFiles.diskSize(of: KeptFiles.standIns(for: clips, in: kept)) > 0)
+        #expect(KeptFiles.removeStandIns(for: clips, in: kept) > 0)
+        #expect(KeptFiles.standIns(for: clips, in: kept).isEmpty)
+        #expect(clip.fileURLs(keptIn: kept)[0] == urls[0])
+        KeptFiles.keep([root.appendingPathComponent("moved/a.txt")], for: 7, in: kept)
+
+        // Gone with their clips, and the half-made ones; the marker stays.
+        try fm.createDirectory(at: kept.appendingPathComponent("9"), withIntermediateDirectories: true)
+        try fm.createDirectory(at: kept.appendingPathComponent(".incoming-x"), withIntermediateDirectories: true)
+        KeptFiles.keepEarlier([], in: kept)
+        KeptFiles.removeAll(except: [7], in: kept)
+        #expect(Set(try fm.contentsOfDirectory(atPath: kept.path)) == ["7", ".earlier"])
+        KeptFiles.remove([7], in: kept)
+        #expect(clip.fileURLs(keptIn: kept)[0] == urls[0])
     }
 }

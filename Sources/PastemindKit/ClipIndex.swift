@@ -337,9 +337,10 @@ public final class ClipIndex {
         byte < 0x80 && !(byte >= 0x30 && byte <= 0x39) && !(byte >= 0x61 && byte <= 0x7A) && !(byte >= 0x41 && byte <= 0x5A)
     }
 
-    /// What words match against: the text, and for a picture the word "image" too (so "image" finds the pictures).
+    /// What words match against: the text, and for a picture the word "image" too (so "image" finds the pictures,
+    /// copied as files too).
     static func searchable(_ clip: Clip) -> String {
-        clip.kind == .image ? "image " + clip.text : clip.text
+        clip.kind == .image || clip.isPictureFile ? "image " + clip.text : clip.text
     }
 
     /// Word matching reads this much of a clip: enough for anything you'd remember, without slowing on huge pastes.

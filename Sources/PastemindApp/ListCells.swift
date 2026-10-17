@@ -116,11 +116,11 @@ final class ClipCell: ListCell {
         alphaValue = row?.weak == true && !selected ? 0.55 : 1
     }
 
-    /// A link without its scheme and "www.": the narrow column shows where it goes, not "https://www.". A video's,
-    /// a GIF's or a picture file's name after "File: ".
+    /// A link without its scheme and "www.": the narrow column shows where it goes, not "https://www.". A video
+    /// file's name after "File: ".
     static func listTitle(_ clip: Clip) -> String {
-        // A video, a GIF or a picture copied as a file: its cover shows it's a picture, the title that it's a file.
-        if Thumbnails.isMedia(clip) { return "File: " + clip.title }
+        // A video copied as a file: its cover shows a frame of it, the title that it's a file.
+        if Thumbnails.isMedia(clip), !clip.isPictureFile { return "File: " + clip.title }
         guard clip.kind == .link else { return clip.title }
         var link = clip.title
         for prefix in ["https://", "http://"] where link.hasPrefix(prefix) { link.removeFirst(prefix.count) }

@@ -193,10 +193,11 @@ public final class ClipStore {
             if let id = existing {
                 try db.run("""
                     UPDATE clips SET last_copied = ?, copies = copies + 1, app_id = coalesce(?, app_id),
-                    app_name = coalesce(?, app_name), rich = coalesce(?, rich), rich_type = coalesce(?, rich_type)
+                    app_name = coalesce(?, app_name), rich = coalesce(?, rich), rich_type = coalesce(?, rich_type),
+                    width = coalesce(?, width), height = coalesce(?, height), bytes = coalesce(?, bytes)
                     WHERE id = ?
                     """, [.double(date.timeIntervalSince1970), .optional(appID), .optional(appName), .optional(rich),
-                          .optional(richType), .int(id)])
+                          .optional(richType), .optional(width), .optional(height), .optional(bytes), .int(id)])
                 return Recorded(clip: try clip(id: id)!, isNew: false)
             }
             try db.run("""
@@ -279,17 +280,19 @@ public final class ClipStore {
         }
     }
 
-    /// Pictures saved before their sizes were kept, to measure once.
-    public func imagesWithoutBytes() throws -> [(id: Int64, image: String)] {
-        var rows: [(Int64, String)] = []
-        try db.query("SELECT id, image FROM clips WHERE image IS NOT NULL AND bytes IS NULL") { row in
-            if let image = row.text(1) { rows.append((row.int(0), image)) }
+    /// Pictures, and picture files, saved before their sizes were kept, to measure once.
+    public func unmeasuredPictures() throws -> [Clip] {
+        var clips: [Clip] = []
+        try db.query("SELECT \(Self.columns) FROM clips WHERE bytes IS NULL AND (image IS NOT NULL OR kind = 'file')") {
+            clips.append(clip($0))
         }
-        return rows
+        return clips.filter { $0.kind == .image || $0.isPictureFile }
     }
 
-    public func setBytes(id: Int64, _ bytes: Int) throws {
-        try db.run("UPDATE clips SET bytes = ? WHERE id = ?", [.int(Int64(bytes)), .int(id)])
+    /// A picture's size: the pixels only where they weren't known.
+    public func setSize(id: Int64, width: Int?, height: Int?, bytes: Int) throws {
+        try db.run("UPDATE clips SET width = coalesce(width, ?), height = coalesce(height, ?), bytes = ? WHERE id = ?",
+                   [.optional(width), .optional(height), .int(Int64(bytes)), .int(id)])
     }
 
     public func setPinned(id: Int64, _ pinned: Bool) throws {

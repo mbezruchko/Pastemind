@@ -153,6 +153,13 @@ enum Paster {
                 let item = NSPasteboardItem()
                 item.setString(url.absoluteString, forType: .fileURL)
                 item.setString(url.path, forType: .string)
+                // A picture file with its picture too, as a copied picture comes with its file: an app that takes
+                // pictures pastes the picture, Finder and upload fields the file.
+                if clip.isPictureFile, let type = UTType(filenameExtension: url.pathExtension),
+                   let size = (try? url.resourceValues(forKeys: [.fileSizeKey]))?.fileSize, size <= 64 << 20,
+                   let data = try? Data(contentsOf: url) {
+                    item.setData(data, forType: NSPasteboard.PasteboardType(type.identifier))
+                }
                 items.append(item)
             }
         case .image:
@@ -199,24 +206,33 @@ nonisolated enum Pictures {
         let bytes: Int
     }
 
+    /// A TIFF (a picture as an app decoded it: uncompressed) is kept as PNG, the same picture in a fraction of it.
     static func save(_ data: Data, ext: String) throws -> Saved {
+        var data = data, ext = ext
+        if ext == "tiff", let png = png(from: data) { (data, ext) = (png, "png") }
         let hash = ClipClassifier.hash(data)
         let name = "\(hash).\(ext)"
         let url = AppPaths.images.appendingPathComponent(name)
         if !FileManager.default.fileExists(atPath: url.path) { try data.write(to: url, options: .atomic) }
-        var width: Int?, height: Int?
-        if let source = CGImageSourceCreateWithData(data as CFData, nil),
-    /// A TIFF (a picture as an app decoded it: uncompressed) is kept as PNG, the same picture in a fraction of it.
-           let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any] {
-        var data = data, ext = ext
-        if ext == "tiff", let png = png(from: data) { (data, ext) = (png, "png") }
-            width = properties[kCGImagePropertyPixelWidth] as? Int
-            height = properties[kCGImagePropertyPixelHeight] as? Int
-        }
+        let size = pixels(of: CGImageSourceCreateWithData(data as CFData, nil))
         // The copies to draw, now: the preview's from the original, the icon's from the preview's.
         _ = decode(name, pixels: previewPixels)
         _ = decode(name, pixels: iconPixels)
-        return Saved(name: name, hash: hash, width: width, height: height, bytes: data.count)
+        return Saved(name: name, hash: hash, width: size?.width, height: size?.height, bytes: data.count)
+    }
+
+    /// A picture file's size in pixels (from its header) and on disk, as a saved picture's: nil when it's gone.
+    static func measure(_ url: URL) -> (width: Int?, height: Int?, bytes: Int)? {
+        guard let bytes = (try? url.resourceValues(forKeys: [.fileSizeKey]))?.fileSize else { return nil }
+        let size = pixels(of: CGImageSourceCreateWithURL(url as CFURL, nil))
+        return (size?.width, size?.height, bytes)
+    }
+
+    private static func pixels(of source: CGImageSource?) -> (width: Int, height: Int)? {
+        guard let source, let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any],
+              let width = properties[kCGImagePropertyPixelWidth] as? Int,
+              let height = properties[kCGImagePropertyPixelHeight] as? Int else { return nil }
+        return (width, height)
     }
 
     /// The sizes pictures are drawn at (longest side, in pixels): the list's icon and the preview.
@@ -260,6 +276,17 @@ nonisolated enum Pictures {
         AppPaths.thumbnails.appendingPathComponent("\((name as NSString).deletingPathExtension)-\(pixels).png")
     }
 
+    /// The first picture in `data`, as PNG (ImageIO: fine off the main thread).
+    private static func png(from data: Data) -> Data? {
+        guard let source = CGImageSourceCreateWithData(data as CFData, nil),
+              let image = CGImageSourceCreateImageAtIndex(source, 0, nil) else { return nil }
+        let png = NSMutableData()
+        guard let destination = CGImageDestinationCreateWithData(png, UTType.png.identifier as CFString, 1, nil)
+        else { return nil }
+        CGImageDestinationAddImage(destination, image, nil)
+        return CGImageDestinationFinalize(destination) ? png as Data : nil
+    }
+
     /// As PNG: it keeps the transparency of window shots (JPEG drops it; HEIC decodes four times slower). Written whole
     /// at once, so a decode that runs alongside never reads half a file.
     private static func write(_ image: CGImage, to url: URL) {
@@ -274,17 +301,6 @@ nonisolated enum Pictures {
     /// The text in a picture (screenshots, photos of documents), in reading order. Empty when there's none.
     static func text(in url: URL) -> String {
         TextRecognition.pages(of: url)?.first?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-    }
-
-    /// The first picture in `data`, as PNG (ImageIO: fine off the main thread).
-    private static func png(from data: Data) -> Data? {
-        guard let source = CGImageSourceCreateWithData(data as CFData, nil),
-              let image = CGImageSourceCreateImageAtIndex(source, 0, nil) else { return nil }
-        let png = NSMutableData()
-        guard let destination = CGImageDestinationCreateWithData(png, UTType.png.identifier as CFString, 1, nil)
-        else { return nil }
-        CGImageDestinationAddImage(destination, image, nil)
-        return CGImageDestinationFinalize(destination) ? png as Data : nil
     }
 
     /// A smaller version, decoded at the size it's drawn. Never bigger than the picture.

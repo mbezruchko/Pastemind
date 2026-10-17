@@ -1,4 +1,5 @@
 import AppKit
+import PastemindKit
 import ServiceManagement
 import SwiftUI
 
@@ -143,6 +144,9 @@ final class SettingsModel {
     var paused = Settings.paused {
         didSet { Settings.paused = paused }
     }
+    var keptFilesMegabytes = Settings.keptFilesMegabytes {
+        didSet { Settings.keptFilesMegabytes = keptFilesMegabytes }
+    }
     var searchFileContents = Settings.searchFileContents == true {
         didSet { app.setFileSearch(searchFileContents) }
     }
@@ -173,8 +177,15 @@ final class SettingsModel {
     private(set) var cleared: String?
     /// Bumped when the history may have changed (cleared here, or the window shown again): the counts follow.
     private(set) var historyVersion = 0
+    /// What the copies standing in for copied files that are gone take (`KeptFiles`), measured as the window shows.
+    private(set) var standInBytes = 0
+    /// Removing them was clicked once: deleting can't be undone, the second click removes them.
+    private(set) var copiesArmed = false
+    /// What removing them did, for a moment.
+    private(set) var copiesNote: String?
     @ObservationIgnored private var armedTask: Task<Void, Never>?
     @ObservationIgnored private var clearedTask: Task<Void, Never>?
+    @ObservationIgnored private var copiesTask: Task<Void, Never>?
     @ObservationIgnored private var monitor: Any?
     @ObservationIgnored private var timer: Timer?
     @ObservationIgnored private var defaultsObserver: NSObjectProtocol?
@@ -208,6 +219,46 @@ final class SettingsModel {
         problems = app.hotkeys.problems
         historyVersion += 1
         readChangedElsewhere()
+        measureCopies()
+    }
+
+    /// Off the main thread, after the copies being made or removed (clearing the history removes some).
+    func measureCopies() {
+        let clips = app.fileClips
+        Task { [weak self] in
+            let bytes = await Task.detached(priority: .utility) {
+                KeptFiles.queue.sync { KeptFiles.diskSize(of: KeptFiles.standIns(for: clips)) }
+            }.value
+            self?.standInBytes = bytes
+        }
+    }
+
+    /// The first click arms removing the copies (for 3 seconds), the second removes them.
+    func removeCopies() {
+        guard copiesArmed else {
+            copiesArmed = true
+            copiesTask?.cancel()
+            copiesTask = Task { [weak self] in
+                try? await Task.sleep(for: .seconds(3))
+                guard !Task.isCancelled else { return }
+                self?.copiesArmed = false
+            }
+            return
+        }
+        copiesArmed = false
+        copiesTask?.cancel()
+        let clips = app.fileClips
+        copiesTask = Task { [weak self] in
+            let bytes = await Task.detached(priority: .userInitiated) {
+                KeptFiles.queue.sync { KeptFiles.removeStandIns(for: clips) }
+            }.value
+            guard let self else { return }
+            standInBytes = 0
+            copiesNote = "Removed \(ByteCountFormatter.string(fromByteCount: Int64(bytes), countStyle: .file))"
+            try? await Task.sleep(for: .seconds(2.5))
+            guard !Task.isCancelled else { return }
+            copiesNote = nil
+        }
     }
 
     /// What can change elsewhere with the window closed (it's kept, showing what it first read otherwise): pausing
@@ -240,6 +291,7 @@ final class SettingsModel {
         armedTask?.cancel()
         let count = app.clearClips(since: range.since())
         historyVersion += 1
+        measureCopies()
         flash(count == 1 ? "Cleared 1 clip" : "Cleared \(count.formatted()) clips")
     }
 
@@ -425,6 +477,30 @@ struct SettingsView: View {
                         ForEach(ClearRange.allCases) { range in clearPill(range) }
                     }
                 }
+                RowDivider()
+                SettingRow(title: "Keep copies of copied files",
+                           detail: "Up to this size, so one still pastes once it's moved or deleted. A copy takes no "
+                               + "space while the file stays as it was.") {
+                    Menu {
+                        Picker("Keep copies of copied files", selection: $model.keptFilesMegabytes) {
+                            ForEach(Self.keptFilesChoices, id: \.megabytes) { Text($0.name).tag($0.megabytes) }
+                        }
+                        .pickerStyle(.inline)
+                        .labelsHidden()
+                    } label: {
+                        Pill(title: Self.keptFilesName(model.keptFilesMegabytes), symbol: "chevron.up.chevron.down",
+                             prominent: true)
+                    }
+                    .menuStyle(.button)
+                    .buttonStyle(.plain)
+                    .menuIndicator(.hidden)
+                    .fixedSize()
+                }
+                RowDivider()
+                SettingRow(title: "Copies of deleted files",
+                           detail: model.copiesNote ?? "Kept as long as their clips. Removing them frees the space.") {
+                    copiesPill
+                }
             }
 
             SettingsSection(title: "Search") {
@@ -523,26 +599,56 @@ struct SettingsView: View {
             if armed {
                 ConfirmLabel(title: "Clear (\(count.formatted()))?")
             } else {
-                HStack(spacing: 5) {
-                    Text(range.shortTitle)
-                        .font(.system(size: 12, weight: .medium))
-                    Text(count.formatted())
-                        .font(.system(size: 12))
-                        .foregroundStyle(.tertiary)
-                        .monospacedDigit()
-                }
-                .lineLimit(1)
-                .fixedSize()
-                .foregroundStyle(Color.secondary)
-                .padding(.horizontal, 10)
-                .frame(height: ConfirmLabel.height)
-                .capsuleChrome(interactive: true)
-                .contentShape(Capsule())
+                pillLabel(range.shortTitle, count.formatted())
             }
         }
         .buttonStyle(Pressable())
         .disabled(count == 0)
         .opacity(count == 0 ? 0.4 : 1)
+    }
+
+    /// What the copies of deleted files take, to remove them; armed, it asks to be clicked again, in red.
+    private var copiesPill: some View {
+        let bytes = Int64(model.standInBytes)
+        let size = bytes == 0 ? "0 KB" : ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file)
+        return Button { model.removeCopies() } label: {
+            if model.copiesArmed {
+                ConfirmLabel(title: "Remove (\(size))?")
+            } else {
+                pillLabel("Remove", size)
+            }
+        }
+        .buttonStyle(Pressable())
+        .disabled(model.standInBytes == 0)
+        .opacity(model.standInBytes == 0 ? 0.4 : 1)
+    }
+
+    /// An action and how much it takes on ("Today 12"), as a capsule.
+    private func pillLabel(_ title: String, _ amount: String) -> some View {
+        HStack(spacing: 5) {
+            Text(title)
+                .font(.system(size: 12, weight: .medium))
+            Text(amount)
+                .font(.system(size: 12))
+                .foregroundStyle(.tertiary)
+                .monospacedDigit()
+        }
+        .lineLimit(1)
+        .fixedSize()
+        .foregroundStyle(Color.secondary)
+        .padding(.horizontal, 10)
+        .frame(height: ConfirmLabel.height)
+        .capsuleChrome(interactive: true)
+        .contentShape(Capsule())
+    }
+
+    private static let keptFilesChoices: [(megabytes: Int, name: String)] = [
+        (0, "Off"), (10, "10 MB"), (100, "100 MB"), (500, "500 MB"), (1024, "1 GB"),
+    ]
+
+    /// One of the choices, or what `defaults write` set.
+    private static func keptFilesName(_ megabytes: Int) -> String {
+        keptFilesChoices.first { $0.megabytes == megabytes }?.name ?? "\(megabytes) MB"
     }
 
     private static let historyChoices: [(days: Int, name: String)] = [

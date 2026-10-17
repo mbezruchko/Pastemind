@@ -76,11 +76,18 @@ folders like Downloads, since previews read the files.
 Text (links, colors and code are recognized and shown as such), images and files. A picture comes in from a browser
 "Copy Image" (its address beside it doesn't make it a link), a screenshot or any app, as PNG, JPEG, HEIC, WebP, GIF or
 TIFF (kept as PNG); Pastemind reads a copy once the app has finished writing it, so a big photo still being encoded
-isn't missed. Pictures are found by what's in
+isn't missed. A picture copied as its file (in Finder) is an image too, shown as one ("Image: 4032×3024 (2.1 MB)",
+found by its name as well), kept to by "image:", and pasted or dragged as the file with the picture beside it.
+Pictures are found by what's in
 them ("owl", "a receipt", "chart of revenue", in any language), and by what's written in them (Vision reads their text);
 "image" finds them all. Copied files are found by what's in them too: a document's or PDF's text, code, a photo, a
-video's frames, a voice memo's words ("call the dentist" finds the recording), a folder's contents. Only their vector
-is kept, not what was read; keys, certificates and password stores are never read, nor files that only live in iCloud.
+video's frames, a voice memo's words ("call the dentist" finds the recording), a folder's contents. For search only
+their vector is kept, not what was read; keys, certificates and password stores are never read, nor files that only live
+in iCloud. Pastemind keeps its own copy of copied files, so one moved or deleted since still pastes, drags and shows: a
+clone on APFS, which takes no space while the original stays as it was (from another disk, a full copy), up to 100 MB a
+clip (photos, screenshots, documents: not the videos, archives and disk images deleted to free space; Settings →
+Clipboard sets it, from off to 1 GB), never keys, certificates, password stores or files that only live in iCloud. It
+lasts as long as its clip; Settings shows what the copies of deleted files take, and removes them.
 Several files copied together are found by any one of them (the row then names the one), and show as a grid of their
 pictures: each drags out on its own, and a click opens it in Quick Look with the others a step away. A long document
 (a PDF, Word, RTF, a web page, text or Markdown) is found by what's anywhere in its first ~100,000 characters, not only

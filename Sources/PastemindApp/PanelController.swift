@@ -557,7 +557,7 @@ final class PanelController {
         // "Image:", "Files: invoice": that kind only, the words after it searched among them.
         let (kinds, words) = ClipKind.filter(in: text)
         if let kinds, words.isEmpty {   // a kind alone: the latest of it
-            let rows = app.index.clips.lazy.filter { kinds.contains($0.kind) }.prefix(Self.recentLimit)
+            let rows = app.index.clips.lazy.filter { $0.isKept(by: kinds) }.prefix(Self.recentLimit)
                 .map { PanelRow(clip: $0) }
             set([PanelSection(id: "results", title: nil, rows: Array(rows))], phase: .wordsOnly, keepSelection: navigated)
             return
@@ -579,7 +579,7 @@ final class PanelController {
 
     private func only(_ kinds: Set<ClipKind>?, _ results: [SearchResult]) -> [SearchResult] {
         guard let kinds else { return results }
-        return Array(results.lazy.filter { kinds.contains($0.clip.kind) }.prefix(Self.resultLimit))
+        return Array(results.lazy.filter { $0.clip.isKept(by: kinds) }.prefix(Self.resultLimit))
     }
 
     /// What's typed without a kind filter ("Image: roadmap" → "roadmap"): the words the rows and the preview mark.
@@ -624,7 +624,7 @@ final class PanelController {
 
     private func rows(_ results: [SearchResult]) -> [PanelRow] {
         results.map { result in
-            let urls = result.clip.fileURLs
+            let urls = result.clip.copiedURLs
             // Which of several files matched (one file's pieces aren't files).
             let file = result.file.flatMap { urls.count > 1 && urls.indices.contains($0) ? urls[$0].lastPathComponent : nil }
             return PanelRow(clip: result.clip, weak: !result.strong, words: result.words, file: file)
