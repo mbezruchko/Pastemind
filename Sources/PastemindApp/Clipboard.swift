@@ -17,7 +17,7 @@ struct CaptureSource {
 }
 
 /// Watches the general pasteboard. macOS has no notification for a copy, so it reads `changeCount` four times a second
-/// (a counter read: no measurable cost) and the pasteboard itself only when that changes.
+/// (a counter read: no measurable cost) and the pasteboard itself only when that changes, once the copy has settled.
 final class ClipboardWatcher {
     /// On every item Pastemind writes, so its own pastes aren't recorded as copies.
     static let ownType = NSPasteboard.PasteboardType("app.pastemind.own")
@@ -27,13 +27,28 @@ final class ClipboardWatcher {
         "com.agilebits.onepassword", "de.petermaurer.TransientPasteboardType", "com.typeit4me.clipping",
         "Pasteboard generator type", "net.antelle.keeweb",
     ]
-    /// Bigger copies are skipped: not something to search or paste from a history.
+    /// Bigger copies are skipped: not something to search or paste from a history. A picture can be big as copied:
+    /// browsers put a photo there decoded, as a TIFF (48 MB for 12 megapixels), kept as PNG (`Pictures.save`).
     private static let maxTextBytes = 4 << 20
     private static let maxRichBytes = 8 << 20
-    private static let maxImageBytes = 40 << 20
+    private static let maxImageBytes = 256 << 20
+    /// The kinds of picture taken, the first one there: a GIF before its first frame as PNG, the formats apps keep
+    /// pictures in before the TIFF they decode them to.
+    private static let imageTypes: [(type: NSPasteboard.PasteboardType, ext: String)] = [
+        (NSPasteboard.PasteboardType(UTType.gif.identifier), "gif"), (.png, "png"),
+        (NSPasteboard.PasteboardType(UTType.jpeg.identifier), "jpg"), (NSPasteboard.PasteboardType(UTType.heic.identifier), "heic"),
+        (NSPasteboard.PasteboardType(UTType.webP.identifier), "webp"), (NSPasteboard.PasteboardType("public.avif"), "avif"),
+        (.tiff, "tiff"),
+    ]
 
     private let pasteboard = Pasteboards.main
     private var changeCount: Int
+    /// A copy seen, read once what's on the pasteboard stays the same from one look to the next: an app clears it,
+    /// then writes, and a big picture takes it a moment to encode. Read in between, the copy was empty (or only the
+    /// picture's address), and missed: the count doesn't change again. The app in front then is the one it came from.
+    private var pending: (types: [String], seen: CFTimeInterval, app: NSRunningApplication?)?
+    /// Still empty, or still changing, after this long: read as it is.
+    private static let patience: CFTimeInterval = 2
     private var timer: Timer?
     var onCapture: (Capture, CaptureSource) -> Void = { _, _ in }
 
@@ -53,16 +68,36 @@ final class ClipboardWatcher {
     /// After Pastemind writes to the pasteboard itself.
     func skipCurrent() {
         changeCount = pasteboard.changeCount
+        pending = nil
     }
 
     private func check() {
         let count = pasteboard.changeCount
-        guard count != changeCount else { return }
-        changeCount = count
-        guard !Settings.paused else { return }
-        let app = NSWorkspace.shared.frontmostApplication
-        if let id = app?.bundleIdentifier, Settings.ignoredApps.contains(id) { return }
-        guard let capture = read() else { return }
+        guard count != changeCount || pending != nil else { return }
+        let types = (pasteboard.types ?? []).map(\.rawValue)
+        if count != changeCount {
+            changeCount = count
+            pending = (types, CACurrentMediaTime(), NSWorkspace.shared.frontmostApplication)
+            return
+        }
+        guard let seen = pending else { return }
+        let waiting = CACurrentMediaTime() - seen.seen < Self.patience
+        if types.isEmpty || types != seen.types, waiting {
+            pending?.types = types
+            return
+        }
+        let app = seen.app
+        if Settings.paused || app?.bundleIdentifier.map(Settings.ignoredApps.contains) == true {
+            pending = nil
+            return
+        }
+        // Nothing to keep yet may be the start of a copy: a page's markup for a picture, before the picture it's
+        // still encoding. Looked at again until there's something, or no more waiting.
+        guard let capture = read() else {
+            if !waiting { pending = nil }
+            return
+        }
+        pending = nil
         onCapture(capture, CaptureSource(appID: app?.bundleIdentifier, appName: app?.localizedName))
     }
 
@@ -76,8 +111,14 @@ final class ClipboardWatcher {
            !urls.isEmpty {
             return .files(urls)
         }
-        if let string = pasteboard.string(forType: .string), string.utf8.count <= Self.maxTextBytes,
-           !string.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+        let string = pasteboard.string(forType: .string)
+        // A picture copied in a browser comes with its address as text (Safari's, Firefox's): the picture is what was
+        // copied. Other text beside a picture is the copy (cells in a spreadsheet come with a picture of them too).
+        let trimmed = string?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        if trimmed.isEmpty || ClipClassifier.isLink(trimmed) || trimmed.hasPrefix("data:image/"), let image = image(types) {
+            return image
+        }
+        if let string, string.utf8.count <= Self.maxTextBytes, !trimmed.isEmpty {
             var rich: (Data, String)?
             for type in [NSPasteboard.PasteboardType.rtf, .html] where types.contains(type) {
                 if let data = pasteboard.data(forType: type), data.count <= Self.maxRichBytes {
@@ -87,8 +128,12 @@ final class ClipboardWatcher {
             }
             return .text(string, rich: rich)
         }
-        for (type, ext) in [(NSPasteboard.PasteboardType.png, "png"), (.tiff, "tiff")] where types.contains(type) {
-            if let data = pasteboard.data(forType: type), data.count <= Self.maxImageBytes {
+        return nil
+    }
+
+    private func image(_ types: [NSPasteboard.PasteboardType]) -> Capture? {
+        for (type, ext) in Self.imageTypes where types.contains(type) {
+            if let data = pasteboard.data(forType: type), !data.isEmpty, data.count <= Self.maxImageBytes {
                 return .image(data, ext: ext)
             }
         }
@@ -161,7 +206,10 @@ nonisolated enum Pictures {
         if !FileManager.default.fileExists(atPath: url.path) { try data.write(to: url, options: .atomic) }
         var width: Int?, height: Int?
         if let source = CGImageSourceCreateWithData(data as CFData, nil),
+    /// A TIFF (a picture as an app decoded it: uncompressed) is kept as PNG, the same picture in a fraction of it.
            let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any] {
+        var data = data, ext = ext
+        if ext == "tiff", let png = png(from: data) { (data, ext) = (png, "png") }
             width = properties[kCGImagePropertyPixelWidth] as? Int
             height = properties[kCGImagePropertyPixelHeight] as? Int
         }
@@ -226,6 +274,17 @@ nonisolated enum Pictures {
     /// The text in a picture (screenshots, photos of documents), in reading order. Empty when there's none.
     static func text(in url: URL) -> String {
         TextRecognition.pages(of: url)?.first?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+    }
+
+    /// The first picture in `data`, as PNG (ImageIO: fine off the main thread).
+    private static func png(from data: Data) -> Data? {
+        guard let source = CGImageSourceCreateWithData(data as CFData, nil),
+              let image = CGImageSourceCreateImageAtIndex(source, 0, nil) else { return nil }
+        let png = NSMutableData()
+        guard let destination = CGImageDestinationCreateWithData(png, UTType.png.identifier as CFString, 1, nil)
+        else { return nil }
+        CGImageDestinationAddImage(destination, image, nil)
+        return CGImageDestinationFinalize(destination) ? png as Data : nil
     }
 
     /// A smaller version, decoded at the size it's drawn. Never bigger than the picture.

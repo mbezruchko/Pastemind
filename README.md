@@ -73,7 +73,10 @@ folders like Downloads, since previews read the files.
 
 ## What it keeps
 
-Text (links, colors and code are recognized and shown as such), images and files. Pictures are found by what's in
+Text (links, colors and code are recognized and shown as such), images and files. A picture comes in from a browser
+"Copy Image" (its address beside it doesn't make it a link), a screenshot or any app, as PNG, JPEG, HEIC, WebP, GIF or
+TIFF (kept as PNG); Pastemind reads a copy once the app has finished writing it, so a big photo still being encoded
+isn't missed. Pictures are found by what's in
 them ("owl", "a receipt", "chart of revenue", in any language), and by what's written in them (Vision reads their text);
 "image" finds them all. Copied files are found by what's in them too: a document's or PDF's text, code, a photo, a
 video's frames, a voice memo's words ("call the dentist" finds the recording), a folder's contents. Only their vector

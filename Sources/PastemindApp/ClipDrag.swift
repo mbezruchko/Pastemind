@@ -96,13 +96,14 @@ enum PictureFiles {
         }
     }
 
-    /// The picture's data (as stored: PNG or TIFF), then its file: an app that takes pictures pastes the picture, one
-    /// that takes files (Finder, an upload field) the file.
+    /// The picture's data (as stored: PNG, JPEG, GIF…), then its file: an app that takes pictures pastes the picture,
+    /// one that takes files (Finder, an upload field) the file.
     static func item(for clip: Clip) -> NSPasteboardItem? {
         guard clip.kind == .image, let name = clip.image,
               let data = try? Data(contentsOf: AppPaths.images.appendingPathComponent(name)) else { return nil }
         let item = NSPasteboardItem()
-        item.setData(data, forType: name.lowercased().hasSuffix(".png") ? .png : .tiff)
+        let type = UTType(filenameExtension: (name as NSString).pathExtension) ?? .png
+        item.setData(data, forType: NSPasteboard.PasteboardType(type.identifier))
         if let file = file(for: clip) { item.setString(file.absoluteString, forType: .fileURL) }
         return item
     }
