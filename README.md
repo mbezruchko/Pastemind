@@ -1,14 +1,71 @@
-# Pastemind
+<p align="center">
+  <img src="site/media/icon-256.png" width="128" height="128" alt="Pastemind's icon">
+</p>
 
-**A clipboard with a mind.**
+<h1 align="center">Pastemind</h1>
+
+<p align="center">
+  <b>A clipboard with a mind.</b><br>
+  Clipboard history for macOS that you search by words or by what the clip is about,<br>
+  plus a search for apps, System Settings and files. It all runs on your Mac.
+</p>
+
+<p align="center">
+  <a href="https://github.com/mbezruchko/Pastemind/releases/latest/download/Pastemind.dmg"><img src="https://img.shields.io/badge/Download_for_macOS-000000?style=for-the-badge&logo=apple&logoColor=white" alt="Download for macOS"></a>
+</p>
+
+<p align="center">
+  <a href="https://github.com/mbezruchko/Pastemind/releases/latest"><img src="https://img.shields.io/github/v/release/mbezruchko/Pastemind?label=version" alt="Latest version"></a>
+  <img src="https://img.shields.io/badge/macOS-14%2B-lightgrey" alt="macOS 14 or later">
+  <img src="https://img.shields.io/badge/Apple_Silicon-arm64-lightgrey" alt="Apple Silicon">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="MIT license"></a>
+</p>
+
+<p align="center">
+  <a href="https://pastemind.pages.dev">Website</a> ·
+  <a href="#install">Install</a> ·
+  <a href="#shortcuts">Shortcuts</a> ·
+  <a href="#privacy">Privacy</a> ·
+  <a href="#how-it-works">How it works</a> ·
+  <a href="#build">Build</a>
+</p>
 
 https://github.com/user-attachments/assets/1b9fbfdc-edc6-4353-8dbf-c019b9bc793c
 
-Clipboard history for macOS that you search by words or by what the clip is about, plus a search for
-apps, System Settings and files. Press **Left ⇧ ⌘ C**, type "router ip" or "flight to Lisbon" (in any language),
-and the right clip comes up, even when it shares no words with what you typed. Press **⌘ Space** and type "saf" for
-Safari, "wifi" for the Wi‑Fi settings, or "'report" for files. It runs locally on Google DeepMind's
-[EmbeddingGemma 2](https://huggingface.co/google/embeddinggemma-2) through [llama.cpp](https://github.com/ggml-org/llama.cpp).
+<table>
+  <tr>
+    <td width="33%" align="center" valign="top"><img src="site/media/glass-c_plane_24.webp" alt="The clipboard history: &quot;when does my plane leave&quot; finds a copied flight number"><br><sub><b>By meaning.</b> "when does my plane leave" finds the flight, no word in common.</sub></td>
+    <td width="33%" align="center" valign="top"><img src="site/media/glass-c_owl_final.webp" alt="The clipboard history: &quot;owl&quot; finds a copied picture of an owl"><br><sub><b>Pictures by what's in them.</b> "owl" finds the photo.</sub></td>
+    <td width="33%" align="center" valign="top"><img src="site/media/glass-s_q1_05.webp" alt="Search: &quot;sfari&quot; finds Safari"><br><sub><b>Search.</b> Apps, System Settings and files, typos and all.</sub></td>
+  </tr>
+</table>
+
+## What it does
+
+- **Finds a clip by what it was about.** Type "router ip" or "flight to Lisbon", in any language, and the right clip
+  comes up even when it shares no words with what you typed. Words match at once, the most recent first.
+- **Pictures and files by what's in them.** "owl", "a receipt", "chart of revenue" find the picture; the text in it is
+  read too. A copied PDF, document, photo, video or voice memo is found by its contents ("call the dentist" finds the
+  recording).
+- **One more search for the rest.** ⌘ Space and "saf" for Safari, "wifi" for the Wi‑Fi settings, "'report" for files.
+- **Pastes the way you need.** ↩︎ pastes into the app you were in, with its formatting or as plain text; any clip drags
+  out into other apps; a tap of ⇧ shows it in Quick Look.
+- **Keeps copied files.** Its own copy of a copied file (an APFS clone, free while the original stays) still pastes
+  after the original is moved or deleted.
+- **Private.** Everything stays on this Mac, and passwords are never kept. It runs Google DeepMind's
+  [EmbeddingGemma 2](https://huggingface.co/google/embeddinggemma-2) locally through
+  [llama.cpp](https://github.com/ggml-org/llama.cpp).
+
+## Install
+
+1. [Download Pastemind.dmg](https://github.com/mbezruchko/Pastemind/releases/latest/download/Pastemind.dmg) and drag
+   Pastemind to Applications. It needs an Apple Silicon Mac with macOS 14 or later.
+2. Open it. It downloads its model once: 246 MB for text, then 226 MB for pictures (and 328 MB for sound, only once a
+   recording is copied or opened).
+3. Press **Left ⇧ ⌘ C** for the clipboard history. The first ↩︎ asks for Accessibility access, which auto-paste needs.
+
+It updates itself: once a day it looks for a new release, and installs only one signed with its key. **Check for
+Updates…** is in the menu bar icon's menu.
 
 ## Shortcuts
 
@@ -35,9 +92,9 @@ Spotlight), or pick another shortcut for search in Settings.
 | Key | What it does |
 |---|---|
 | ↓ ↑, ⌘↓ ⌘↑ | Moves through the clips |
-| ↩ | Pastes into the app you were in (keeps formatting when the clip has it) |
-| ⇧↩ | Pastes as plain text |
-| ⌘↩ | Copies without pasting |
+| ↩︎ | Pastes into the app you were in (keeps formatting when the clip has it) |
+| ⇧↩︎ | Pastes as plain text |
+| ⌘↩︎ | Copies without pasting |
 | ⌘1…⌘9 | Pastes that row |
 | ⌘P | Pins or unpins (pinned clips stay at the top and never expire) |
 | ⇧ (a tap), ⌘Y | Quick Look of a picture, files, code or text (again, Space or Esc closes it) |
@@ -47,8 +104,8 @@ Spotlight), or pick another shortcut for search in Settings.
 
 Text in a picture can be copied from Quick Look: click into it, select the text (or ⌘A) and press ⌘C.
 
-Auto-paste needs Accessibility access: the first ↩ asks for it (or use **Allow Auto-Paste…** in the menu bar).
-Until it's granted, ↩ copies and you press ⌘V yourself.
+Auto-paste needs Accessibility access: the first ↩︎ asks for it (or use **Allow Auto-Paste…** in the menu bar).
+Until it's granted, ↩︎ copies and you press ⌘V yourself.
 
 The "…" button in either panel has Settings, Pause Recording and Quit.
 
@@ -56,8 +113,8 @@ The "…" button in either panel has Settings, Pause Recording and Quit.
 
 | Key | What it does |
 |---|---|
-| ↩ | Opens the app, settings pane, file or folder |
-| ⌘↩ | Shows it in Finder |
+| ↩︎ | Opens the app, settings pane, file or folder |
+| ⌘↩︎ | Shows it in Finder |
 | ⌘C | Copies its path |
 | ⇧ (a tap), ⌘Y | Quick Look of the file, folder or app (again, Space or Esc closes it) |
 | ⌘1…⌘9 | Opens that row |
@@ -73,40 +130,44 @@ folders like Downloads, since previews read the files.
 
 ## What it keeps
 
-Text (links, colors and code are recognized and shown as such), images and files. A picture comes in from a browser
-"Copy Image" (its address beside it doesn't make it a link), a screenshot or any app, as PNG, JPEG, HEIC, WebP, GIF or
-TIFF (kept as PNG); Pastemind reads a copy once the app has finished writing it, so a big photo still being encoded
-isn't missed, and the history shows it at once meanwhile, as "Copying…". A picture copied as its file (in Finder) is an image too, shown as one ("Image: 4032×3024 (2.1 MB)",
-found by its name as well), kept to by "image:", and pasted or dragged as the file with the picture beside it.
-Pictures are found by what's in
-them ("owl", "a receipt", "chart of revenue", in any language), and by what's written in them (Vision reads their text);
-"image" finds them all. Copied files are found by what's in them too: a document's or PDF's text, code, a photo, a
-video's frames, a voice memo's words ("call the dentist" finds the recording), a folder's contents. For search only
-their vector is kept, not what was read; keys, certificates and password stores are never read, nor files that only live
-in iCloud. Pastemind keeps its own copy of copied files, so one moved or deleted since still pastes, drags and shows: a
-clone on APFS, which takes no space while the original stays as it was (from another disk, a full copy), up to 100 MB a
-clip (photos, screenshots, documents: not the videos, archives and disk images deleted to free space; Settings →
-Clipboard sets it, from off to 1 GB), never keys, certificates, password stores or files that only live in iCloud. It
-lasts as long as its clip; Settings shows what the copies of deleted files take, and removes them.
-Several files copied together are found by any one of them (the row then names the one), and show as a grid of their
-pictures: each drags out on its own, and a click opens it in Quick Look with the others a step away. A long document
-(a PDF, Word, RTF, a web page, text or Markdown) is found by what's anywhere in its first ~100,000 characters, not only
-its start; a scanned PDF too, its text read by OCR (its first 50 pages).
-A clip drags out of its row or the preview into other apps, as a paste would give it; a picture as a file named
-after its size ("Image 1400×820.png"), which upload fields and chats take, with the picture beside it. Pasted, a
-picture brings its file along too: ⌘V in Finder makes that file.
-Copying the same thing again moves it to the top instead of adding it twice. Copying text again a little longer or shorter (it starts
-the same: the selection redone) within 5 minutes replaces the copy before (Settings → Clipboard, on by default). Unpinned clips go after 90 days or past
-10,000 clips (`historyDays`, `maxClips`).
+- **Text**, with links, colors and code recognized and shown as such. Copying the same thing again moves it to the top
+  instead of adding it twice. Copying text again a little longer or shorter (it starts the same: the selection redone)
+  within 5 minutes replaces the copy before (Settings → Clipboard, on by default).
+- **Pictures** from a browser's "Copy Image" (its address beside it doesn't make it a link), a screenshot or any app,
+  as PNG, JPEG, HEIC, WebP, GIF or TIFF (kept as PNG). Pastemind reads a copy once the app has finished writing it, so
+  a big photo still being encoded isn't missed, and the history shows it at once meanwhile, as "Copying…". Pictures
+  are found by what's in them ("owl", "a receipt", "chart of revenue", in any language) and by what's written in them
+  (Vision reads their text); "image" finds them all.
+- **A picture copied as its file** (in Finder) is an image too: shown as one ("Image: 4032×3024 (2.1 MB)", found by
+  its name as well), kept to by "image:", and pasted or dragged as the file with the picture beside it.
+- **Files**, found by what's in them too: a document's or PDF's text, code, a photo, a video's frames, a voice memo's
+  words, a folder's contents. A long document (a PDF, Word, RTF, a web page, text or Markdown) is found by what's
+  anywhere in its first ~100,000 characters, not only its start; a scanned PDF too, its text read by OCR (its first 50
+  pages). For search only their vector is kept, not what was read; keys, certificates and password stores are never
+  read, nor files that only live in iCloud.
+- **Several files copied together** are found by any one of them (the row then names the one), and show as a grid of
+  their pictures: each drags out on its own, and a click opens it in Quick Look with the others a step away.
+- **Its own copy of copied files**, so one moved or deleted since still pastes, drags and shows: a clone on APFS, which
+  takes no space while the original stays as it was (from another disk, a full copy). Up to 100 MB a clip (photos,
+  screenshots, documents: not the videos, archives and disk images deleted to free space; Settings → Clipboard sets
+  it, from off to 1 GB), never keys, certificates, password stores or files that only live in iCloud. It lasts as long
+  as its clip; Settings shows what the copies of deleted files take, and removes them.
+
+A clip drags out of its row or the preview into other apps, as a paste would give it; a picture as a file named after
+its size ("Image 1400×820.png"), which upload fields and chats take, with the picture beside it. Pasted, a picture
+brings its file along too: ⌘V in Finder makes that file. Unpinned clips go after 90 days or past 10,000 clips
+(Settings → Clipboard, or `historyDays`, `maxClips`).
+
+## Privacy
+
+Everything stays on this Mac, in `~/Library/Application Support/Pastemind`. Pastemind goes online only to download the
+model, once, and to look for a new version once a day, from this repository's releases (the request carries only
+Pastemind's version; Settings → General turns it off).
 
 It never keeps what apps mark as concealed or transient (passwords from 1Password and the like, per
 [nspasteboard.org](http://nspasteboard.org)), or anything copied in a password manager (add more with
-`defaults write app.pastemind.Pastemind ignoredApps -array com.example.app`). **Pause Recording** in the menu stops it entirely.
-
-Everything stays on this Mac, in `~/Library/Application Support/Pastemind`. Pastemind goes online only to download the
-model, once: 246 MB for text, 226 MB for pictures after it, and 328 MB for sound only once a recording is copied or
-opened; and to look for a new version once a day, from this repository's releases (the request carries only
-Pastemind's version; Settings → General turns it off).
+`defaults write app.pastemind.Pastemind ignoredApps -array com.example.app`). **Pause Recording** in the menu stops it
+entirely.
 
 ## How it works
 
@@ -138,12 +199,22 @@ keystroke ─► words: one memchr scan over all clips' folded text          ~0.
   meaning, by cosine + a little recency. EmbeddingGemma 2 gives unrelated clips ~0.6–0.7 and good
   matches ~0.7–0.87, so a meaning match has to be within 0.1 of the best one to show, and within 0.045 to show at
   full strength (`ClipIndex.Tuning`, calibrated with `pastemind-cli eval`).
+
+<details>
+<summary><b>Meaning matches and the typical query</b></summary>
+
 - A short clip (a word, "thanks", a chat line) comes close to any short query, whatever it asks. So a meaning match
   must also be at least 0.05 closer to the query than to the typical query (the mean of 40 everyday queries in several
   languages, made once after the model loads; for a query of one word, of 40 single words, and 0.06), and that
   closeness counts half against it in the ranking. Among 60 such clips the 24 evaluation queries all still find their
   answer and none of 26 with no answer shows anything; of 15 one-word queries 8 find theirs first (4 before) and none
   of 15 with no answer shows anything (7 did) (`pastemind-cli crowd`, `lift`, `words`).
+
+</details>
+
+<details>
+<summary><b>The model</b></summary>
+
 - The model is ours on Hugging Face ([mbezruchko/embeddinggemma-2-pastemind-GGUF](https://huggingface.co/mbezruchko/embeddinggemma-2-pastemind-GGUF),
   pinned to a revision, checked by SHA-256): the text model in Q6_K (Q8_0's quality in every evaluation here, vectors
   within cosine 0.997 of it, 64 MB less), and the image and audio encoders split into two files
@@ -156,6 +227,13 @@ keystroke ─► words: one memchr scan over all clips' folded text          ~0.
 - Clips copied while the model is out wait for it (words find them at once): until the history opens next, or 32 of
   them pile up, when it loads, reads them and goes again. Queries always go before clip embedding, which runs in small
   batches behind them.
+- GPU (Metal) by default, CPU as the fallback. Every Apple Silicon Mac, MacBook Air included, has a Metal GPU.
+
+</details>
+
+<details>
+<summary><b>Pictures</b></summary>
+
 - Pictures go through EmbeddingGemma 2's own image encoder (`mmproj-embeddinggemma-2-vision-Q8_0.gguf`, downloaded
   after the text model) into the same vector space as text, so a text query, in any language, finds them; with the text Vision
   read in them in the same input when there's 40 characters of it or more (a photo's stray letters only blur it).
@@ -163,6 +241,12 @@ keystroke ─► words: one memchr scan over all clips' folded text          ~0.
   top-1 over 50 pictures, the queries in several languages). The encoder loads in ~0.1 s, only while there are pictures to
   read (~200 MB more, gone after); the audio encoder (its own file) likewise, only while there's sound to hear.
   Until it's downloaded, pictures go by their text, and are read again once it's there.
+
+</details>
+
+<details>
+<summary><b>Finding files by what's in them</b></summary>
+
 - Search finds files by what's in them too (`FileIndexer`), once it's turned on: search offers it at the end of a
   query that found nothing by name (never selected unasked), or Settings → Search. Turning it on asks macOS for the
   Desktop, Documents and Downloads together, once (the rest of the home folder needs no asking). Three tiers, in the
@@ -187,6 +271,12 @@ keystroke ─► words: one memchr scan over all clips' folded text          ~0.
   the history's bars against the typical query too (at 256 numbers): on the test files the answer came first 29 of 32
   times (27 before) and 10 of 12 for one-word queries (7), and photos that only came close to anything stopped showing
   (`pastemind-cli filecrowd`, `filedropped`).
+
+</details>
+
+<details>
+<summary><b>Copied files, long documents and scans</b></summary>
+
 - Copied files (`CopiedFileReader`, read off the main thread as they're copied) go in as one input under their names:
   text from documents (txt, Markdown, code, RTF, Word, OpenDocument, HTML) and PDFs (a scan's by OCR, below; one with
   none OCR reads either, a photo, by its first page's picture), pictures (an image file, three frames of a video, any other document's Quick Look preview, four at most)
@@ -217,7 +307,8 @@ keystroke ─► words: one memchr scan over all clips' folded text          ~0.
   (a vacancy and the lease) among the six long PDFs: 13 queries about them, the right one first for all 13
   (12 among 7,126 real files' vectors); before, by the first page's picture, a query about the vacancy's tech stack found nothing. Scans read
   before by their picture (a PDF without pieces, `CopiedFiles.readAgain`) are read again, once.
-- GPU (Metal) by default, CPU as the fallback. Every Apple Silicon Mac, MacBook Air included, has a Metal GPU.
+
+</details>
 
 Measured on an M1 Pro (2026-10-13):
 
@@ -249,7 +340,8 @@ A build of your own isn't notarized: copied to another Mac, Gatekeeper quarantin
 Don't `cp -R` a new build over an installed one: the binary is rewritten in place and macOS kills it at launch for an
 invalid code signature (`open` reports error -609). `scripts/install.sh` removes the old copy first.
 
-## Release
+<details>
+<summary><b>Release</b></summary>
 
 `scripts/release.sh` makes `release/<version>/`: Pastemind.app signed with a Developer ID, notarized and stapled, in a
 DMG that's signed, notarized and stapled too, and the `appcast.xml` Sparkle reads (one item, signed with the update
@@ -269,7 +361,10 @@ Updates are Sparkle 2's (`Updater.swift`): once a day it reads `SUFeedURL`, the 
 installs an update only if its EdDSA signature matches `SUPublicEDKey` (both in `Resources/Info.plist`). **Check for
 Updates…** is in the menu bar icon's menu; Settings → General has the daily check's switch. Debug runs never check.
 
-## Developing
+</details>
+
+<details>
+<summary><b>Developing</b></summary>
 
 ```sh
 .build/release/pastemind-cli bench          # load time, query and clip embedding, search over 10k clips
@@ -285,6 +380,8 @@ PASTEMIND_CPU=1 .build/release/pastemind-cli bench   # the same on the CPU only
 with its own history on a private pasteboard that never presses ⌘V. Drive it with `scripts/pastemindctl.swift`
 (`swiftc -O scripts/pastemindctl.swift -o .build/pastemindctl`): `pastemindctl copy "text"`, `show`, `query "…"`, `down`, `paste`,
 `dump`, `snapshot /tmp/panel.png`, `read`; `search`, `squery "…"`, `sdump`, `ssnapshot …` for search; `settings`.
+
+</details>
 
 ## Credits
 
