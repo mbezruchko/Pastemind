@@ -213,9 +213,11 @@ final class ClipCell: ListCell {
         Draw.fill(image, in: rect, radius: Draw.tileRadius(rect))
         Draw.border(rect, radius: Draw.tileRadius(rect), color: NSColor.labelColor.opacity(0.15))
     }
+}
 
+extension ListCell {
     /// The app's icon over the bottom right corner, a little outside it.
-    private func drawBadge(_ appID: String?, on rect: NSRect) {
+    func drawBadge(_ appID: String?, on rect: NSRect) {
         let side = rect.width * 0.55
         guard let badge = Icons.app(appID, side: side) else { return }
         let frame = NSRect(x: pixel(rect.maxX - side + rect.width * 0.16),
@@ -228,6 +230,58 @@ final class ClipCell: ListCell {
         shadow.set()
         badge.draw(in: frame, from: .zero, operation: .sourceOver, fraction: 1, respectFlipped: true, hints: nil)
         NSGraphicsContext.restoreGraphicsState()
+    }
+}
+
+/// A copy on its way into the history (a browser still encoding a picture, a big picture being saved): where its row
+/// will be, at once, with a spinner on the icon, the app it comes from and "now".
+final class IncomingCell: ListCell {
+    private let spinner = NSProgressIndicator()
+    private var appID: String?
+    private var title = Draw.text("Copying…", font: RowStyle.title, color: .secondaryLabelColor)
+    private var subtitle = NSAttributedString()
+
+    override var interactive: Bool { false }
+
+    required init(frame: NSRect) {
+        super.init(frame: frame)
+        spinner.style = .spinning
+        spinner.controlSize = .small
+        addSubview(spinner)
+    }
+
+    required init?(coder: NSCoder) { fatalError("not used") }
+
+    func configure(_ source: CaptureSource) {
+        appID = source.appID
+        subtitle = Draw.text([source.appName, "now"].compactMap { $0 }.joined(separator: " · "),
+                             font: RowStyle.subtitle, color: .secondaryLabelColor)
+        spinner.startAnimation(nil)
+        needsDisplay = true
+    }
+
+    private var icon: NSRect {
+        let rect = content, side = RowStyle.icon
+        return NSRect(x: rect.minX + 8, y: rect.minY + pixel((rect.height - side) / 2), width: side, height: side)
+    }
+
+    override func layout() {
+        super.layout()
+        let side: CGFloat = 16
+        spinner.frame = NSRect(x: icon.midX - side / 2, y: icon.midY - side / 2, width: side, height: side)
+    }
+
+    override func drawRow(in rect: NSRect) {
+        let icon = self.icon
+        NSColor.labelColor.opacity(0.06).setFill()
+        Draw.rounded(icon, radius: Draw.tileRadius(icon)).fill()
+        Draw.border(icon, radius: Draw.tileRadius(icon), color: NSColor.labelColor.opacity(0.1))
+        drawBadge(appID, on: icon)
+        let x = icon.maxX + 10, right = rect.maxX - 8 - 14
+        let titleHeight = Draw.lineHeight(RowStyle.title)
+        let top = rect.minY + pixel((rect.height - titleHeight - 2 - Draw.lineHeight(RowStyle.subtitle)) / 2)
+        Draw.line(title, x: x, top: top, width: right - x)
+        Draw.line(subtitle, x: x, top: top + titleHeight + 2, width: right - x)
     }
 }
 

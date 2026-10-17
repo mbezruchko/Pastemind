@@ -71,6 +71,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         updater = Updater()
         settings = SettingsWindowController(app: self)
         watcher.onCapture = { [weak self] capture, source in self?.record(capture, from: source) }
+        watcher.onIncoming = { [weak self] source in self?.setIncoming(source) }
         watcher.start()
         makeStatusItem()
         updateStatusItem()
@@ -224,7 +225,20 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     /// The last text copied, and when: the next copy may redo it (`RedoneCopy`).
     private var lastTextCopy: (id: Int64, at: Date)?
 
+    /// A copy on its way into the history (an app still writing it, a picture being saved): the history shows it at
+    /// once, as a row of its own, until it's there.
+    private(set) var incoming: CaptureSource?
+    /// The picture being saved that `incoming` stands for: an earlier one's saving doesn't take it away.
+    private var incomingPicture = 0
+
+    private func setIncoming(_ source: CaptureSource?) {
+        guard source != incoming else { return }
+        incoming = source
+        panel.historyChanged()
+    }
+
     private func record(_ capture: Capture, from source: CaptureSource) {
+        if case .image = capture {} else { setIncoming(nil) }
         switch capture {
         case .text(let text, let rich):
             let kind = ClipClassifier.kind(of: text)
@@ -254,15 +268,22 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 }
             }
         case .image(let data, let ext):
-            // Hashing, writing and reading a big screenshot take a moment: off the main thread.
+            // Hashing and writing a big screenshot take a moment: off the main thread, the row there meanwhile.
+            incomingPicture += 1
+            let picture = incomingPicture
+            setIncoming(source)
             Task.detached(priority: .userInitiated) {
-                guard let saved = try? Pictures.save(data, ext: ext) else { return }
+                let saved = try? Pictures.save(data, ext: ext)
                 await MainActor.run {
+                    // The clip takes its row's place in the same refresh.
+                    if picture == self.incomingPicture { self.incoming = nil }
+                    guard let saved else { return self.panel.historyChanged() }
                     let clip = self.save(kind: .image, text: "", hash: "image:\(saved.hash)", source: source,
                                          image: saved.name, width: saved.width, height: saved.height,
                                          bytes: saved.bytes)
                     if let clip, clip.text.isEmpty { self.readText(of: clip) }
                 }
+                if let name = saved?.name { Pictures.makeCopies(name) }
             }
         }
     }

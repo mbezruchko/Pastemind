@@ -178,6 +178,7 @@ private struct ClipTable: NSViewRepresentable {
     final class Rows: ListSource {
         private enum Item {
             case header(String)
+            case incoming(CaptureSource)
             case row(PanelRow)
         }
 
@@ -201,7 +202,8 @@ private struct ClipTable: NSViewRepresentable {
             if changed {
                 self.sections = sections
                 items = sections.flatMap { section in
-                    (section.title.map { [Item.header($0)] } ?? []) + section.rows.map(Item.row)
+                    (section.title.map { [Item.header($0)] } ?? []) + (section.incoming.map { [Item.incoming($0)] } ?? [])
+                        + section.rows.map(Item.row)
                 }
                 index = [:]
                 for (position, item) in items.enumerated() {
@@ -237,6 +239,10 @@ private struct ClipTable: NSViewRepresentable {
             case .header(let title):
                 let cell = list.reuse(SectionCell.self)
                 cell.configure(title)
+                return cell
+            case .incoming(let source):
+                let cell = list.reuse(IncomingCell.self)
+                cell.configure(source)
                 return cell
             case .row(let clipRow):
                 let cell = list.reuse(ClipCell.self)

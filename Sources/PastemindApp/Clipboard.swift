@@ -11,7 +11,7 @@ enum Capture {
     case image(Data, ext: String)
 }
 
-struct CaptureSource {
+struct CaptureSource: Equatable {
     let appID: String?
     let appName: String?
 }
@@ -50,8 +50,13 @@ final class ClipboardWatcher {
     /// Still empty, or still changing, after this long: read as it is. A Chromium browser clears the pasteboard, then
     /// encodes the picture as PNG: seconds for a big one. Waiting costs a look at the types four times a second.
     private static let patience: CFTimeInterval = 10
+    /// `onIncoming` was told of the copy in `pending`: told again when it comes to nothing.
+    private var announced = false
     private var timer: Timer?
     var onCapture: (Capture, CaptureSource) -> Void = { _, _ in }
+    /// A copy on its way: the pasteboard cleared and still empty (a browser encoding a picture), so the history can
+    /// show it at once; nil when it came to nothing. One that's read goes to `onCapture` instead.
+    var onIncoming: (CaptureSource?) -> Void = { _ in }
 
     init() {
         changeCount = pasteboard.changeCount
@@ -69,7 +74,7 @@ final class ClipboardWatcher {
     /// After Pastemind writes to the pasteboard itself.
     func skipCurrent() {
         changeCount = pasteboard.changeCount
-        pending = nil
+        drop()
     }
 
     private func check() {
@@ -78,7 +83,9 @@ final class ClipboardWatcher {
         let types = (pasteboard.types ?? []).map(\.rawValue)
         if count != changeCount {
             changeCount = count
-            pending = (types, CACurrentMediaTime(), NSWorkspace.shared.frontmostApplication)
+            let app = NSWorkspace.shared.frontmostApplication
+            pending = (types, CACurrentMediaTime(), app)
+            if types.isEmpty { announce(app) }
             return
         }
         guard let seen = pending else { return }
@@ -88,18 +95,33 @@ final class ClipboardWatcher {
             return
         }
         let app = seen.app
-        if Settings.paused || app?.bundleIdentifier.map(Settings.ignoredApps.contains) == true {
-            pending = nil
-            return
-        }
+        if Settings.paused || Self.ignores(app) { return drop() }
         // Nothing to keep yet may be the start of a copy: a page's markup for a picture, before the picture it's
         // still encoding. Looked at again until there's something, or no more waiting.
         guard let capture = read() else {
-            if !waiting { pending = nil }
+            if !waiting { drop() }
             return
         }
         pending = nil
+        announced = false
         onCapture(capture, CaptureSource(appID: app?.bundleIdentifier, appName: app?.localizedName))
+    }
+
+    private static func ignores(_ app: NSRunningApplication?) -> Bool {
+        app?.bundleIdentifier.map(Settings.ignoredApps.contains) == true
+    }
+
+    private func announce(_ app: NSRunningApplication?) {
+        guard !announced, !Settings.paused, !Self.ignores(app) else { return }
+        announced = true
+        onIncoming(CaptureSource(appID: app?.bundleIdentifier, appName: app?.localizedName))
+    }
+
+    /// The copy came to nothing (or was Pastemind's own).
+    private func drop() {
+        pending = nil
+        if announced { onIncoming(nil) }
+        announced = false
     }
 
     private func read() -> Capture? {
@@ -216,10 +238,14 @@ nonisolated enum Pictures {
         let url = AppPaths.images.appendingPathComponent(name)
         if !FileManager.default.fileExists(atPath: url.path) { try data.write(to: url, options: .atomic) }
         let size = pixels(of: CGImageSourceCreateWithData(data as CFData, nil))
-        // The copies to draw, now: the preview's from the original, the icon's from the preview's.
+        return Saved(name: name, hash: hash, width: size?.width, height: size?.height, bytes: data.count)
+    }
+
+    /// The copies to draw: the preview's from the original, the icon's from the preview's. After the clip's in the
+    /// list (it shows the moment the picture's saved, its icon a moment later).
+    static func makeCopies(_ name: String) {
         _ = decode(name, pixels: previewPixels)
         _ = decode(name, pixels: iconPixels)
-        return Saved(name: name, hash: hash, width: size?.width, height: size?.height, bytes: data.count)
     }
 
     /// A picture file's size in pixels (from its header) and on disk, as a saved picture's: nil when it's gone.

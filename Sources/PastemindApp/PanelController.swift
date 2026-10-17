@@ -20,6 +20,8 @@ struct PanelSection: Identifiable, Equatable {
     let id: String
     let title: String?
     let rows: [PanelRow]
+    /// A copy on its way in, above the rows (`AppController.incoming`).
+    var incoming: CaptureSource? = nil
 }
 
 /// What "Clear history" offers: the clips copied in the last few minutes, today, or all of them.
@@ -509,7 +511,8 @@ final class PanelController {
         let recent = clips.lazy.filter { !$0.pinned }.prefix(Self.recentLimit).map { PanelRow(clip: $0) }
         var sections: [PanelSection] = []
         if !pinned.isEmpty { sections.append(PanelSection(id: "pinned", title: "Pinned", rows: pinned)) }
-        sections.append(PanelSection(id: "recent", title: pinned.isEmpty ? nil : "Recent", rows: Array(recent)))
+        sections.append(PanelSection(id: "recent", title: pinned.isEmpty ? nil : "Recent", rows: Array(recent),
+                                     incoming: app.incoming))
         set(sections, phase: .recent, keepSelection: keepSelection)
     }
 

@@ -76,7 +76,7 @@ folders like Downloads, since previews read the files.
 Text (links, colors and code are recognized and shown as such), images and files. A picture comes in from a browser
 "Copy Image" (its address beside it doesn't make it a link), a screenshot or any app, as PNG, JPEG, HEIC, WebP, GIF or
 TIFF (kept as PNG); Pastemind reads a copy once the app has finished writing it, so a big photo still being encoded
-isn't missed. A picture copied as its file (in Finder) is an image too, shown as one ("Image: 4032×3024 (2.1 MB)",
+isn't missed, and the history shows it at once meanwhile, as "Copying…". A picture copied as its file (in Finder) is an image too, shown as one ("Image: 4032×3024 (2.1 MB)",
 found by its name as well), kept to by "image:", and pasted or dragged as the file with the picture beside it.
 Pictures are found by what's in
 them ("owl", "a receipt", "chart of revenue", in any language), and by what's written in them (Vision reads their text);
