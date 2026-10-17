@@ -16,7 +16,6 @@
 //   pastemindctl menubar on|off | reopen                 the menu bar icon (unsaved), opening the app again
 //   pastemindctl film <folder>                           30 frames of the panels, 16 ms apart, with their heights
 //   pastemindctl settings | settingssnapshot <path> | settingsdump   Settings; its frames logged
-//   pastemindctl settingsscroll <points>              Settings scrolled that far down
 //   pastemindctl welcome | welcomeclose | welcomesnapshot <path>   the welcome window a new install opens with
 //   pastemindctl welcomestate start|done|failed          the welcome as it'd look then (till the app quits)
 //   pastemindctl welcomepage 0|1|2                       one of its pages, as Next and Back show them

@@ -62,7 +62,6 @@ enum DebugHooks {
                 case "settings": settings.show()
                 case "settingssnapshot": snapshot(settings.windowNumber, to: URL(fileURLWithPath: argument))
                 case "settingsnote": settings.flash(argument)
-                case "settingsscroll": settings.debugScroll(to: CGFloat(Double(argument) ?? 0))   // points down
                 case "welcome": welcome.show()
                 case "welcomesnapshot": snapshot(welcome.windowNumber, to: URL(fileURLWithPath: argument))
                 case "welcomestate": welcome.debugState(argument)   // start | done | failed: as if so, till the next one

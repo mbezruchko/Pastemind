@@ -21,17 +21,6 @@ final class SettingsWindowController {
         model?.flash(note)
     }
 
-    /// Debug runs: its settings scrolled that far down (points).
-    func debugScroll(to y: CGFloat) {
-        func scrollView(in view: NSView) -> NSScrollView? {
-            if let scroll = view as? NSScrollView { return scroll }
-            return view.subviews.lazy.compactMap(scrollView).first
-        }
-        guard let content = window?.contentView, let scroll = scrollView(in: content) else { return log("no scroll") }
-        scroll.contentView.scroll(to: NSPoint(x: 0, y: y))
-        scroll.reflectScrolledClipView(scroll.contentView)
-    }
-
     /// The window and its content's frames, for debug runs.
     var frames: String {
         guard let window else { return "no window" }
