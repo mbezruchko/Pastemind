@@ -11,13 +11,25 @@ final class Thumbnails {
 
     init() { cache.countLimit = 400 }
 
-    /// The preview's cover of a video, a GIF or a picture copied as a file (as wide as the pane, give or take).
+    /// The preview's cover of a copied file: a document's first page, a video's frame, a photo (as wide as the pane,
+    /// give or take).
     static let coverSide: CGFloat = 480
     /// Several copied files' pictures in the preview's grid.
     static let gridSide: CGFloat = 240
 
-    /// A file clip's first file when it's a video, a GIF or a picture (and still there): shown by a frame of it, a
-    /// cover, not the file type's icon.
+    /// The file a one-file clip's preview shows a picture of, over its name (Quick Look's, when it makes one: a
+    /// document's first page, a video's frame, a photo): still there, and not a folder (a package, a document like
+    /// one, is fine).
+    static func coverPath(of clip: Clip) -> String? {
+        guard clip.kind == .file, clip.fileURLs.count == 1, let url = clip.fileURLs.first else { return nil }
+        var folder: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: url.path, isDirectory: &folder),
+              !folder.boolValue || NSWorkspace.shared.isFilePackage(atPath: url.path) else { return nil }
+        return url.path
+    }
+
+    /// A file clip's first file when it's a video, a GIF or a picture (and still there): shown by a frame of it in the
+    /// list, not the file type's icon.
     static func mediaPath(of clip: Clip) -> String? {
         guard isMedia(clip), let url = clip.fileURLs.first, FileManager.default.fileExists(atPath: url.path)
         else { return nil }

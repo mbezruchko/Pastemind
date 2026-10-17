@@ -404,9 +404,9 @@ final class PanelController {
             guard let image = ImageCache.shared.cached(name, pixels: Pictures.previewPixels)
                     ?? ImageCache.shared.cached(name, pixels: Pictures.iconPixels) else { return nil }
             picture = image
-        } else if let path = Thumbnails.mediaPath(of: clip),
+        } else if let path = Thumbnails.coverPath(of: clip),
                   let image = Thumbnails.shared.cached(path, side: Thumbnails.coverSide) {
-            picture = image   // a video's, a GIF's cover, as the pane shows it
+            picture = image   // a file's cover (a document's page, a video's frame), as the pane shows it
         } else {
             return clip.fileURLs.first.map(Icons.file)
         }

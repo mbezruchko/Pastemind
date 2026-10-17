@@ -330,7 +330,7 @@ struct ClipPreview: View {
 
     /// This clip's cover, once made (Quick Look's thumbnail service).
     private var fileCover: NSImage? {
-        guard let path = Thumbnails.mediaPath(of: clip) else { return nil }
+        guard let path = Thumbnails.coverPath(of: clip) else { return nil }
         if let cover, cover.path == path { return cover.image }
         return Thumbnails.shared.cached(path, side: Thumbnails.coverSide)
     }
@@ -403,8 +403,8 @@ struct ClipPreview: View {
                 }
             }
             .padding(16)
-            .task(id: Thumbnails.mediaPath(of: clip)) {
-                guard let path = Thumbnails.mediaPath(of: clip),
+            .task(id: Thumbnails.coverPath(of: clip)) {
+                guard let path = Thumbnails.coverPath(of: clip),
                       let image = await Thumbnails.shared.load(path, side: Thumbnails.coverSide) else { return }
                 cover = (path, image)
             }
@@ -414,7 +414,7 @@ struct ClipPreview: View {
         case .file:
             ScrollView {
                 VStack(alignment: .leading, spacing: 8) {
-                    // A video: a frame of it on top, where Quick Look opens from.
+                    // A picture of it on top (a document's first page, a video's frame), where Quick Look opens from.
                     if let cover = fileCover {
                         Image(nsImage: cover)
                             .resizable()
@@ -423,7 +423,7 @@ struct ClipPreview: View {
                             .opacity(lifted ? 0 : 1)
                             .animation(liftFade, value: lifted)
                             .background(AnchorView(anchor: anchor))
-                            .overlay(dragSource(Thumbnails.mediaPath(of: clip).map {
+                            .overlay(dragSource(Thumbnails.coverPath(of: clip).map {
                                 ClipDrag.writers(forFile: URL(fileURLWithPath: $0))
                             } ?? [], image: cover))
                             .frame(maxWidth: .infinity, maxHeight: 240)
@@ -453,8 +453,8 @@ struct ClipPreview: View {
                 .padding(16)
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .task(id: Thumbnails.mediaPath(of: clip)) {
-                guard let path = Thumbnails.mediaPath(of: clip),
+            .task(id: Thumbnails.coverPath(of: clip)) {
+                guard let path = Thumbnails.coverPath(of: clip),
                       let image = await Thumbnails.shared.load(path, side: Thumbnails.coverSide) else { return }
                 cover = (path, image)
             }
