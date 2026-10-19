@@ -85,19 +85,6 @@ enum Settings {
         return count > 0 ? count : 10_000
     }
 
-    /// Where the panels open once one has been dragged: the middle of the field's top edge, as fractions of the
-    /// screen's visible area.
-    static var panelAnchor: CGPoint? {
-        get {
-            guard let values = defaults.array(forKey: "panelAnchor") as? [Double], values.count == 2 else { return nil }
-            return CGPoint(x: values[0], y: values[1])
-        }
-        set {
-            if let point = newValue { defaults.set([point.x, point.y], forKey: "panelAnchor") }
-            else { defaults.removeObject(forKey: "panelAnchor") }
-        }
-    }
-
     static var paused: Bool {
         get { defaults.bool(forKey: "paused") }
         set { defaults.set(newValue, forKey: "paused") }

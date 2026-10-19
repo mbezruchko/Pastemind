@@ -36,14 +36,11 @@ enum PanelChrome {
     static let fieldPlaceholder = NSColor.labelColor.withAlphaComponent(0.42)
 
     /// Where a panel opens on its own, as the middle of its field's top edge, on the screen with the pointer: centered,
-    /// where Spotlight's field is (a quarter of the way down), or where a panel was last dragged. That place is kept as fractions
-    /// of the screen, so it's the same place on a screen of another size.
+    /// where Spotlight's field is (a quarter of the way down). A dragged panel stays where it's put only until it closes.
     static func topCenter() -> NSPoint {
         let screen = NSScreen.screens.first { NSMouseInRect(NSEvent.mouseLocation, $0.frame, false) } ?? NSScreen.main
         let area = screen?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
-        let anchor = Settings.panelAnchor ?? CGPoint(x: 0.5, y: 0.775)
-        return NSPoint(x: (area.minX + anchor.x * area.width).rounded(),
-                       y: (area.minY + anchor.y * area.height).rounded())
+        return NSPoint(x: area.midX.rounded(), y: (area.minY + 0.775 * area.height).rounded())
     }
 
     /// A panel of `size` with its field's top edge centered on `anchor`, moved in where it would leave the screen.
@@ -56,13 +53,6 @@ enum PanelChrome {
             frame.origin.y = max(min(frame.minY, area.maxY - frame.height), area.minY)
         }
         return frame
-    }
-
-    /// A dragged panel's place, where both open from now on.
-    static func remember(_ window: NSWindow) {
-        guard let area = (window.screen ?? NSScreen.main)?.visibleFrame, area.width > 0, area.height > 0 else { return }
-        Settings.panelAnchor = CGPoint(x: (window.frame.midX - area.minX) / area.width,
-                                       y: (window.frame.maxY - area.minY) / area.height)
     }
 
     /// Dragged this close to the screen's middle, a panel snaps to it (and holds there until dragged further).
@@ -394,8 +384,8 @@ final class PanelHost {
     }
 }
 
-/// Under a panel's field row and footer: dragging there moves the panel (both panels: they open where it was left),
-/// snapping to the middle of the screen as it passes, with a tap of the trackpad.
+/// Under a panel's field row and footer: dragging there moves the panel till it closes (switching to the other panel
+/// keeps the place), snapping to the middle of the screen as it passes, with a tap of the trackpad.
 struct PanelDragArea: NSViewRepresentable {
     func makeNSView(context: Context) -> DragView { DragView() }
     func updateNSView(_ view: DragView, context: Context) {}
@@ -408,7 +398,6 @@ struct PanelDragArea: NSViewRepresentable {
             let grabbed = NSEvent.mouseLocation
             let start = window.frame.origin
             var snapped = false
-            var moved = false
             while let next = window.nextEvent(matching: [.leftMouseDragged, .leftMouseUp]), next.type != .leftMouseUp {
                 let mouse = NSEvent.mouseLocation
                 var origin = NSPoint(x: start.x + mouse.x - grabbed.x, y: start.y + mouse.y - grabbed.y)
@@ -421,9 +410,7 @@ struct PanelDragArea: NSViewRepresentable {
                     origin.y = min(origin.y, area.maxY - window.frame.height)   // the field stays below the menu bar
                 }
                 window.setFrameOrigin(origin)
-                moved = true
             }
-            if moved { PanelChrome.remember(window) }
         }
     }
 }
