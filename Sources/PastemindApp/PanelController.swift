@@ -257,6 +257,7 @@ final class PanelController {
         mode = .history   // it opens on the history, as search opens on everything
         query = ""
         showRecent()
+        resultsVersion += 1   // from the top, wherever the list was scrolled to before it closed
         query = initial
         flushSearch()
         let anchor = topCenter ?? PanelChrome.topCenter()
