@@ -57,7 +57,7 @@ public enum ModelFiles {
     /// Ours: the text model in Q6_K, and the image and audio encoders split apart (`scripts/split-mmproj.py`), made
     /// from ggml-org's files below; see its model card.
     public static let repository = "mbezruchko/embeddinggemma-2-pastemind-GGUF"
-    public static let revision = "c0a58f4a78d1ec5dc1395bfa8b1827e40cd711b9"
+    public static let revision = "5a4ed3ddde54e71fe1491a54a600bb95fcbeb5d5"
     /// ggml-org's, which ours were made from (and earlier installs have).
     public static let sourceRepository = "ggml-org/embeddinggemma-2-GGUF"
     public static let sourceRevision = "bfcd298762cc34d0357ece5ebdd31791a3a374d8"
