@@ -28,8 +28,8 @@ public enum AppPaths {
     }
 }
 
-/// One of EmbeddingGemma 2's files for llama.cpp, from a Hugging Face repository at one pinned revision, checked
-/// against its SHA-256. Never F16: the model's activations overflow float16.
+/// One of EmbeddingGemma 2's files for llama.cpp, from a Hugging Face repository at one pinned revision (or the latest,
+/// should that one be gone), checked against its SHA-256. Never F16: the model's activations overflow float16.
 public struct ModelFile: Sendable {
     public let name: String
     public let bytes: Int64
@@ -40,7 +40,13 @@ public struct ModelFile: Sendable {
     /// Q8_0, or both encoders in one mmproj.
     public let alternatives: [String]
 
-    public var url: URL {
+    public var url: URL { url(at: revision) }
+
+    /// At the repository's latest revision: where it's downloaded from once the pinned one is gone (a squashed history
+    /// drops its old commits). The SHA-256 decides whether it's the same file.
+    public var latestURL: URL { url(at: "main") }
+
+    private func url(at revision: String) -> URL {
         URL(string: "https://huggingface.co/\(repository)/resolve/\(revision)/\(name)")!
     }
 

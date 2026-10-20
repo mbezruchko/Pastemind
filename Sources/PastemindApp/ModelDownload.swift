@@ -17,11 +17,13 @@ nonisolated final class ModelDownload: NSObject, URLSessionDownloadDelegate, @un
         self.onFinish = onFinish
     }
 
-    func start() {
-        let session = URLSession(configuration: .default, delegate: self, delegateQueue: .main)
+    func start() { download(file.url) }
+
+    private func download(_ url: URL) {
+        let session = self.session ?? URLSession(configuration: .default, delegate: self, delegateQueue: .main)
         self.session = session
-        session.downloadTask(with: file.url).resume()
-        log("downloading \(file.url)")
+        session.downloadTask(with: url).resume()
+        log("downloading \(url)")
     }
 
     func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didWriteData bytesWritten: Int64,
@@ -32,6 +34,16 @@ nonisolated final class ModelDownload: NSObject, URLSessionDownloadDelegate, @un
 
     func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask,
                                 didFinishDownloadingTo location: URL) {
+        // An error comes as a page, downloaded like the file: by its status, not as a file that's corrupt.
+        if let status = (downloadTask.response as? HTTPURLResponse)?.statusCode, !(200..<300).contains(status) {
+            if downloadTask.originalRequest?.url == file.url {
+                log("\(file.name): \(status) at revision \(file.revision), trying the latest")
+                return download(file.latestURL)
+            }
+            let error = HTTPStatusError(status: status)
+            MainActor.assumeIsolated { onFinish(.failure(error)) }
+            return
+        }
         // The file at `location` is gone once this returns: move it first, verify after.
         let partial = AppPaths.models.appendingPathComponent(file.name + ".part")
         let result: Result<URL, Error>
@@ -54,5 +66,13 @@ nonisolated final class ModelDownload: NSObject, URLSessionDownloadDelegate, @un
     func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
         guard let error else { return }
         MainActor.assumeIsolated { onFinish(.failure(error)) }
+    }
+}
+
+/// A download answered with something other than the file.
+nonisolated struct HTTPStatusError: LocalizedError {
+    let status: Int
+    var errorDescription: String? {
+        "the server answered \(status) (\(HTTPURLResponse.localizedString(forStatusCode: status)))"
     }
 }
