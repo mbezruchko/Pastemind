@@ -257,7 +257,7 @@ final class PanelController {
         mode = .history   // it opens on the history, as search opens on everything
         query = ""
         showRecent()
-        resultsVersion += 1   // from the top, wherever the list was scrolled to before it closed
+        resultsVersion += 1   // from the top, should it have closed without the reset in `leave` (already there: no cost)
         query = initial
         flushSearch()
         let anchor = topCenter ?? PanelChrome.topCenter()
@@ -457,6 +457,7 @@ final class PanelController {
             self.query = ""
             self.flushSearch()
             self.showRecent()
+            self.resultsVersion += 1   // scrolled to the top here too, so the next show has no rows to lay out for it
             self.stack?.layoutSubtreeIfNeeded()
         }
     }
