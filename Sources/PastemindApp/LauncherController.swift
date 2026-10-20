@@ -78,8 +78,8 @@ final class LauncherController {
     @ObservationIgnored private var pendingResults: DispatchWorkItem?
     /// The query `prepare` set up, for `show` to take as it is.
     @ObservationIgnored private var prepared: String?
-    /// Where search's field goes once it takes over from the clipboard history.
-    @ObservationIgnored private var takeoverAnchor: NSPoint?
+    /// Set up over the clipboard history, waiting to take its place (`completeTakeover`).
+    @ObservationIgnored private var takingOver = false
     @ObservationIgnored private var stack: PanelStack?
     static var maxHeight: CGFloat { fieldHeight + CGFloat(visibleRows) * rowHeight + 14 }
 
@@ -137,13 +137,13 @@ final class LauncherController {
     /// Switching here from the clipboard history, in two steps. As the history sets off, before its first frame:
     /// search is set up for the query, laid out and drawn, unseen in their window, its field taking the keyboard
     /// (what's typed meanwhile is search's; taking it at the switch cost that frame ~5 ms more).
-    func beginTakeover(query text: String, topCenter anchor: NSPoint) {
+    func beginTakeover(query text: String) {
         transition += 1
         openedQuietly = true
         opened += 1
         if prepared != text { reset(to: text) }
         prepared = nil
-        takeoverAnchor = anchor
+        takingOver = true
         symbolView?.set(symbol, animated: false)
         placeholderView?.set(placeholder, animated: false)
         stack?.setBody(visible: false)
@@ -152,10 +152,13 @@ final class LauncherController {
     }
 
     /// Then, once the history's body has faded: search takes the window from the history (its stack for the
-    /// history's) and carries the history's motion on to its own size, its results coming in.
+    /// history's) and carries the history's motion on to its own size, its results coming in. Its field goes where the
+    /// history's is now: dragged while it folded, where it was dragged to.
     func completeTakeover(motion: WindowMotion?) {
-        guard let window, window.isVisible, let anchor = takeoverAnchor else { return }
-        takeoverAnchor = nil
+        guard let window, window.isVisible, takingOver else { return }
+        takingOver = false
+        let field = motion?.frame ?? window.frame
+        let anchor = NSPoint(x: field.midX, y: field.maxY)
         host.show(.search)   // the history lets go: its motion stops here, and this one carries it on
         let target = PanelChrome.frame(NSSize(width: Self.width, height: desiredHeight), at: anchor)
         if let motion, !Motion.reduced {
@@ -220,8 +223,8 @@ final class LauncherController {
     /// for the history).
     private func leave() {
         quickLook.close(zooming: false)
-        if takeoverAnchor != nil { host.unprepare(.search) }   // the switch here didn't happen
-        takeoverAnchor = nil
+        if takingOver { host.unprepare(.search) }   // the switch here didn't happen
+        takingOver = false
         pendingResults?.cancel()
         pendingResults = nil
         filesFallback?.cancel()
@@ -234,7 +237,7 @@ final class LauncherController {
     }
 
     /// Set up over the clipboard history, invisible, waiting for it to fold (`completeTakeover`).
-    var isTakingOver: Bool { takeoverAnchor != nil }
+    var isTakingOver: Bool { takingOver }
 
     /// The window's height now (mid-animation too): where the clipboard history starts growing from.
     /// The window's size now (mid-animation too): where the clipboard history starts from when it takes over.

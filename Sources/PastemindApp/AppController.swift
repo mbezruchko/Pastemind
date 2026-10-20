@@ -66,7 +66,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 self?.files.index.setTypical(phrases: phrases, words: words)
             })
         files = FileIndexer(app: self, store: store, engine: engine)
-        host = PanelHost(height: max(PanelController.height, LauncherController.maxHeight))
+        host = PanelHost(height: PanelChrome.tallest)
         panel = PanelController(app: self, host: host)
         launcher = LauncherController(app: self, host: host)
         updater = Updater()
@@ -656,7 +656,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     /// From the history: its body fades as it turns into search's shape (search's width, the height its results will
     /// take) and symbol, then search takes its place and its results come in.
     private func showSearch() {
-        guard let anchor = panel.topCenter else { return launcher.show() }
+        guard panel.isVisible else { return launcher.show() }
         let carried = panel.query
         let opening = launcher.opening(for: carried)
         switching = true
@@ -668,7 +668,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
         // Before the first frame (the motion starts with it, so this only holds it back a few ms): done a frame in,
         // its ~30 ms cost the motion three frames, a jump.
-        launcher.beginTakeover(query: carried, topCenter: anchor)
+        launcher.beginTakeover(query: carried)
         // Should the switch be cut short (the history closed some other way), hotkeys mustn't stay ignored.
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in self?.switching = false }
     }

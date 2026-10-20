@@ -35,13 +35,20 @@ enum PanelChrome {
     /// The placeholder, quieter than the symbol: at two thirds it read almost as typed text.
     static let fieldPlaceholder = NSColor.labelColor.withAlphaComponent(0.42)
 
+    /// How high up the screen's visible area a panel's field opens, its top edge where Spotlight's is: 22.5% of the
+    /// way down.
+    static let openingHeight: CGFloat = 0.775
+
     /// Where a panel opens on its own, as the middle of its field's top edge, on the screen with the pointer: centered,
-    /// where Spotlight's field is (a quarter of the way down). A dragged panel stays where it's put only until it closes.
+    /// at `openingHeight`. A dragged panel stays where it's put only until it closes.
     static func topCenter() -> NSPoint {
         let screen = NSScreen.screens.first { NSMouseInRect(NSEvent.mouseLocation, $0.frame, false) } ?? NSScreen.main
         let area = screen?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
-        return NSPoint(x: area.midX.rounded(), y: (area.minY + 0.775 * area.height).rounded())
+        return NSPoint(x: area.midX.rounded(), y: (area.minY + openingHeight * area.height).rounded())
     }
+
+    /// The tallest the window gets, in either mode (search with nine rows).
+    static var tallest: CGFloat { max(PanelController.height, LauncherController.maxHeight) }
 
     /// A panel of `size` with its field's top edge centered on `anchor`, moved in where it would leave the screen.
     static func frame(_ size: NSSize, at anchor: NSPoint) -> NSRect {
@@ -384,8 +391,8 @@ final class PanelHost {
     }
 }
 
-/// Under a panel's field row and footer: dragging there moves the panel till it closes (switching to the other panel
-/// keeps the place), snapping to the middle of the screen as it passes, with a tap of the trackpad.
+/// Under a panel's field row: dragging there moves the panel till it closes (switching to the other panel keeps the
+/// place), snapping to the middle of the screen as it passes, with a tap of the trackpad.
 struct PanelDragArea: NSViewRepresentable {
     func makeNSView(context: Context) -> DragView { DragView() }
     func updateNSView(_ view: DragView, context: Context) {}
@@ -393,23 +400,31 @@ struct PanelDragArea: NSViewRepresentable {
     final class DragView: NSView {
         override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 
+        /// The drag moves the middle of the field's top edge, the place both modes keep. Mid-motion (results coming
+        /// in, a switch to the other mode), from where the window's heading, and the motion moves along.
         override func mouseDown(with event: NSEvent) {
             guard let window else { return }
             let grabbed = NSEvent.mouseLocation
-            let start = window.frame.origin
+            let heading = WindowFrameAnimator.moving(window)?.target ?? window.frame
+            let start = NSPoint(x: heading.midX, y: heading.maxY)
+            var placed = start
             var snapped = false
             while let next = window.nextEvent(matching: [.leftMouseDragged, .leftMouseUp]), next.type != .leftMouseUp {
                 let mouse = NSEvent.mouseLocation
-                var origin = NSPoint(x: start.x + mouse.x - grabbed.x, y: start.y + mouse.y - grabbed.y)
+                var anchor = NSPoint(x: start.x + mouse.x - grabbed.x, y: start.y + mouse.y - grabbed.y)
                 if let area = (window.screen ?? NSScreen.main)?.visibleFrame {
-                    let centered = (area.midX - window.frame.width / 2).rounded()
-                    let near = abs(origin.x - centered) < PanelChrome.snapDistance
-                    if near { origin.x = centered }
+                    let near = abs(anchor.x - area.midX) < PanelChrome.snapDistance
+                    if near { anchor.x = area.midX.rounded() }
                     if near, !snapped { NSHapticFeedbackManager.defaultPerformer.perform(.alignment, performanceTime: .now) }
                     snapped = near
-                    origin.y = min(origin.y, area.maxY - window.frame.height)   // the field stays below the menu bar
+                    // Room under the field for either mode at its tallest, so switching never moves it; and the field
+                    // below the menu bar, should the screen be shorter than that.
+                    anchor.y = min(max(anchor.y, area.minY + PanelChrome.tallest), area.maxY)
                 }
-                window.setFrameOrigin(origin)
+                let offset = NSSize(width: anchor.x - placed.x, height: anchor.y - placed.y)
+                placed = anchor
+                WindowFrameAnimator.moving(window)?.shift(by: offset)
+                window.setFrameOrigin(NSPoint(x: window.frame.minX + offset.width, y: window.frame.minY + offset.height))
             }
         }
     }

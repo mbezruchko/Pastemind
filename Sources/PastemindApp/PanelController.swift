@@ -1239,12 +1239,6 @@ final class PanelController {
     /// The window's frame while the panel is up.
     var currentFrame: NSRect? { isVisible ? window?.frame : nil }
 
-    /// The middle of the field's top edge while the panel is up: where search puts its own when it takes over.
-    var topCenter: NSPoint? {
-        guard let window, isVisible else { return nil }
-        return NSPoint(x: window.frame.midX, y: window.frame.maxY)
-    }
-
 }
 
 /// The floating panel. It becomes key (you type into it) without activating Pastemind.

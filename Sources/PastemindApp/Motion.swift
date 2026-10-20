@@ -92,6 +92,23 @@ final class WindowFrameAnimator: NSObject {
     /// Where it's heading, while it runs.
     var target: NSRect? { isRunning ? to : nil }
 
+    /// The ones under way, for a drag to find the motion of the window it moves (`moving(_:)`).
+    private static let running = NSHashTable<WindowFrameAnimator>.weakObjects()
+
+    /// What's moving `window` now, if anything.
+    static func moving(_ window: NSWindow) -> WindowFrameAnimator? {
+        running.allObjects.first { $0.isRunning && $0.window === window }
+    }
+
+    /// The window dragged mid-motion: the motion moves along by `offset`, its size going on as it was. (Left to run, it
+    /// put the window back where it was heading every frame, and the drag fought it.)
+    func shift(by offset: NSSize) {
+        guard isRunning, channels.count == 4 else { return }
+        channels[0].target += offset.width
+        channels[1].target += offset.height
+        to = to.offsetBy(dx: offset.width, dy: offset.height)
+    }
+
     /// The window's frame and speed as shown: mid-motion, or at rest.
     func motion(of window: NSWindow) -> WindowMotion {
         let now = CACurrentMediaTime()
@@ -145,6 +162,7 @@ final class WindowFrameAnimator: NSObject {
         link.preferredFrameRateRange = Motion.frameRate
         link.add(to: .main, forMode: .common)
         self.link = link
+        Self.running.add(self)
     }
 
     /// A new destination mid-way (results arrived while it grows): the motion bends toward it at the speed it has.
@@ -156,6 +174,7 @@ final class WindowFrameAnimator: NSObject {
     func stop() {
         link?.invalidate()
         link = nil
+        Self.running.remove(self)
     }
 
     /// How far into the motion `now` is: not under way before its first frame.
