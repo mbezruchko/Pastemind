@@ -392,7 +392,8 @@ final class PanelHost {
 }
 
 /// Under a panel's field row: dragging there moves the panel till it closes (switching to the other panel keeps the
-/// place), snapping to the middle of the screen as it passes, with a tap of the trackpad.
+/// place, moved in only where the other would leave the screen), snapping to the middle of the screen as it passes,
+/// with a tap of the trackpad.
 struct PanelDragArea: NSViewRepresentable {
     func makeNSView(context: Context) -> DragView { DragView() }
     func updateNSView(_ view: DragView, context: Context) {}
@@ -417,9 +418,7 @@ struct PanelDragArea: NSViewRepresentable {
                     if near { anchor.x = area.midX.rounded() }
                     if near, !snapped { NSHapticFeedbackManager.defaultPerformer.perform(.alignment, performanceTime: .now) }
                     snapped = near
-                    // Room under the field for either mode at its tallest, so switching never moves it; and the field
-                    // below the menu bar, should the screen be shorter than that.
-                    anchor.y = min(max(anchor.y, area.minY + PanelChrome.tallest), area.maxY)
+                    anchor.y = min(anchor.y, area.maxY)   // the field stays below the menu bar
                 }
                 let offset = NSSize(width: anchor.x - placed.x, height: anchor.y - placed.y)
                 placed = anchor
