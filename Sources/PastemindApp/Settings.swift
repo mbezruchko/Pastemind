@@ -85,6 +85,12 @@ enum Settings {
         return count > 0 ? count : 10_000
     }
 
+    /// Keys nothing reads any more, gone from the defaults of those who had them: "panelAnchor", where a dragged
+    /// panel opened from then on (until 0.1.7).
+    static func forgetRetired() {
+        defaults.removeObject(forKey: "panelAnchor")
+    }
+
     static var paused: Bool {
         get { defaults.bool(forKey: "paused") }
         set { defaults.set(newValue, forKey: "paused") }

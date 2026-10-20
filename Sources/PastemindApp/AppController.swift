@@ -47,6 +47,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
             fail("Pastemind can't open its history at \(AppPaths.database.path): \(error)")
             return
         }
+        Settings.forgetRetired()
         Task.detached(priority: .utility) { Pictures.makeMissingCopies() }
         try? FileManager.default.removeItem(at: QuickLook.codeFolder)   // code written for Quick Look last time
         try? FileManager.default.removeItem(at: PictureFiles.folder)    // pictures dragged or pasted as files last time
