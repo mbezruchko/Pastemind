@@ -76,7 +76,7 @@ enum DebugHooks {
                         MainActor.assumeIsolated { OptionsMenu.shown?.cancelTracking() }
                     }
                     RunLoop.main.add(timer, forMode: .common)
-                    OptionsMenu.popUp(app: app, below: anchor)
+                    OptionsMenu.popUp(app: app, below: anchor, clears: true)
                 case "settingsdump": log("settingsdump: \(settings.frames)")
                 case "glassonly":   // on|off: the panel's content hidden, its glass alone (the promo's empty glass)
                     if let number = panel.windowNumber, let views = NSApp.window(withWindowNumber: number)?.contentView?.subviews {

@@ -859,16 +859,34 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     @objc private func allowPaste() { Paster.requestAccess() }
 
-    @objc private func clearHistory() {
+    @objc private func clearHistory() { confirmClear(.all) }
+
+    /// From the clipboard history's "…" menu: the last few minutes at once, how many went shown in the panel; today's
+    /// or all of it once confirmed.
+    func clear(_ range: ClearRange) {
+        guard !range.asksFirst else {
+            DispatchQueue.main.async { self.confirmClear(range) }   // once the menu's gone
+            return
+        }
+        let count = clearClips(since: range.since())
+        panel.flash(count == 1 ? "Cleared 1 clip" : "Cleared \(count.formatted()) clips")
+    }
+
+    /// Asks, then clears. The dialog brings Pastemind forward (the panel goes, as with any click elsewhere); the app
+    /// that was in front gets the keyboard back after.
+    private func confirmClear(_ range: ClearRange) {
+        let previous = NSWorkspace.shared.frontmostApplication
         NSApp.activate()
+        let count = clearableClips(since: range.since()).count
         let alert = NSAlert()
-        alert.messageText = "Clear the clipboard history?"
-        alert.informativeText = "Every clip except pinned ones is deleted from this Mac. This can't be undone."
-        alert.addButton(withTitle: "Clear History")
+        alert.messageText = range == .all ? "Clear the clipboard history?" : "Clear the clips copied \(range.copied)?"
+        alert.informativeText = (count == 1 ? "1 clip is" : "\(count.formatted()) clips are")
+            + " deleted from this Mac; pinned ones stay. This can't be undone."
+        alert.addButton(withTitle: range == .all ? "Clear History" : "Clear")
         alert.addButton(withTitle: "Cancel")
         alert.buttons[0].hasDestructiveAction = true
-        guard alert.runModal() == .alertFirstButtonReturn else { return }
-        clearClips(since: nil)
+        if alert.runModal() == .alertFirstButtonReturn { clearClips(since: range.since()) }
+        if let previous, previous != NSRunningApplication.current { previous.activate() }
     }
 
     /// The clips that clearing since `date` would delete (all of them for nil): not the pinned ones.

@@ -12,7 +12,7 @@ struct ClipboardHeaderView: View {
                     onField: { controller.field = $0 }, onSymbol: { controller.symbolView = $0 },
                     onPlaceholder: { controller.placeholderView = $0 }) {
             OptionsButton(app: controller.app, opened: controller.opened, quietly: controller.openedQuietly,
-                          query: controller.query, busy: controller.searching)
+                          query: controller.query, busy: controller.searching, clears: true)
         }
         .frame(maxWidth: .infinity)
         .frame(height: PanelChrome.fieldHeight)

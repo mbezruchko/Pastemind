@@ -30,14 +30,29 @@ enum ClearRange: CaseIterable, Identifiable {
 
     var id: Self { self }
 
+    /// For a menu item: "Last 5 Minutes".
     var title: String {
         switch self {
-        case .fiveMinutes: "Last 5 minutes"
-        case .fifteenMinutes: "Last 15 minutes"
+        case .fiveMinutes: "Last 5 Minutes"
+        case .fifteenMinutes: "Last 15 Minutes"
         case .today: "Today"
         case .all: "All"
         }
     }
+
+    /// For a sentence: "the clips copied today".
+    var copied: String {
+        switch self {
+        case .fiveMinutes: "in the last 5 minutes"
+        case .fifteenMinutes: "in the last 15 minutes"
+        case .today: "today"
+        case .all: "ever"
+        }
+    }
+
+    /// Cleared from a menu (no second click there), it asks first: today's and all of it are many clips, and none of
+    /// it can be undone. The last few minutes go at once (the password copied a moment ago).
+    var asksFirst: Bool { self == .today || self == .all }
 
     /// For a button: "5 min", "Today".
     var shortTitle: String {
@@ -1205,8 +1220,8 @@ final class PanelController {
         return responder !== field?.currentEditor()
     }
 
-    /// How many clips clearing `range` would delete now.
-    private func flash(_ text: String) {
+    /// What an action did, at the bottom for a moment.
+    func flash(_ text: String) {
         note = text
         noteTask?.cancel()
         noteTask = Task {

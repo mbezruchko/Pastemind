@@ -663,7 +663,8 @@ struct CircleIcon: View {
     }
 }
 
-/// "…": Settings, pausing the recording, quitting: there even with the menu bar icon hidden.
+/// "…": Settings, pausing the recording, clearing the history (the clipboard's), quitting: there even with the menu bar
+/// icon hidden.
 /// While recording's paused it's "!" in orange instead, saying so on hover, its menu's Settings in orange too (the
 /// switch is there, as orange). An AppKit menu: SwiftUI's menus drop their items' colours.
 ///
@@ -680,6 +681,8 @@ struct OptionsButton: View {
     let query: String
     /// The panel is searching: a spinner where the button is, under it while it's there.
     var busy = false
+    /// The clipboard history's: its menu clears the history too.
+    var clears = false
     @AppStorage("paused") private var paused = false   // follows every switch for it (Settings, the menus)
     @State private var resting = false
     @State private var pointerOver = false
@@ -737,7 +740,7 @@ struct OptionsButton: View {
 
     private func openMenu() {
         menuUp = true   // the pointer goes off the panel onto the menu
-        OptionsMenu.popUp(app: app, below: anchor.view)
+        OptionsMenu.popUp(app: app, below: anchor.view, clears: clears)
         menuUp = false
     }
 
@@ -779,8 +782,8 @@ enum OptionsMenu {
     /// Debug runs: the pointer taken as over the panels, or not, wherever it is (nil: where it is).
     static var debugPointerOver: Bool?
 
-    /// Under the button, its left edges lined up, as a SwiftUI menu button's.
-    static func popUp(app: AppController, below view: NSView?) {
+    /// Under the button, its left edges lined up, as a SwiftUI menu button's. `clears`: with Clear History.
+    static func popUp(app: AppController, below view: NSView?, clears: Bool = false) {
         guard let view else { return }
         let menu = NSMenu()
         menu.autoenablesItems = false
@@ -792,10 +795,27 @@ enum OptionsMenu {
         }
         menu.addItem(settings)
         menu.addItem(item(Settings.paused ? "Resume Recording" : "Pause Recording") { Settings.paused.toggle() })
+        if clears { menu.addItem(clearItem(app: app)) }
         menu.addItem(.separator())
         menu.addItem(item("Quit Pastemind") { NSApp.terminate(nil) })
         shown = menu
         menu.popUp(positioning: nil, at: NSPoint(x: 0, y: view.isFlipped ? view.bounds.maxY + 4 : -4), in: view)
+    }
+
+    /// Settings' ranges, each with how many clips it would delete; those that ask first end in "…".
+    private static func clearItem(app: AppController) -> NSMenuItem {
+        let ranges = NSMenu()
+        ranges.autoenablesItems = false
+        ranges.addItem(.sectionHeader(title: "Pinned clips stay"))
+        for range in ClearRange.allCases {
+            let count = app.clearableClips(since: range.since()).count
+            let choice = item("\(range.title) (\(count.formatted()))\(range.asksFirst ? "…" : "")") { app.clear(range) }
+            choice.isEnabled = count > 0
+            ranges.addItem(choice)
+        }
+        let clear = NSMenuItem(title: "Clear History", action: nil, keyEquivalent: "")
+        clear.submenu = ranges
+        return clear
     }
 
     private static func item(_ title: String, run: @escaping () -> Void) -> NSMenuItem {
