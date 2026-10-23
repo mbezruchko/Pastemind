@@ -135,6 +135,10 @@ final class SettingsModel {
     var selectionTint = Settings.selectionTint {
         didSet { Settings.selectionTint = selectionTint }
     }
+    /// Pastemind's own Liquid Glass tint; nil: System Settings'.
+    var glassTint = Settings.glassTint {
+        didSet { Settings.glassTint = glassTint }
+    }
     var showsPictureText = Settings.showsPictureText {
         didSet { Settings.showsPictureText = showsPictureText }
     }
@@ -567,6 +571,10 @@ struct SettingsView: View {
                         }
                     }
                 }
+                if #available(macOS 27.0, *) {
+                    RowDivider()
+                    glassRow
+                }
                 RowDivider()
                 SettingRow(title: "Open at login") {
                     Switch(isOn: Binding(get: { model.openAtLogin }, set: { model.setOpenAtLogin($0) }))
@@ -631,6 +639,32 @@ struct SettingsView: View {
                 .padding(.horizontal, 14)
                 .padding(.top, 2)
                 .padding(.bottom, 14)
+        }
+    }
+
+    /// Liquid Glass from clear to tinted, at System Settings' until moved; then Pastemind's alone, till Use System.
+    private var glassRow: some View {
+        SettingRow(title: "Liquid Glass") {
+            HStack(spacing: 10) {
+                if model.glassTint != nil {
+                    Button { model.glassTint = nil } label: { Pill(title: "Use System") }
+                        .buttonStyle(Pressable())
+                        .fixedSize()
+                }
+                Slider(value: Binding(get: { model.glassTint ?? Settings.systemGlassTint },
+                                      set: { model.glassTint = $0 }), in: 0...1) {
+                    Text("Liquid Glass")
+                } minimumValueLabel: {
+                    Text("Clear")
+                } maximumValueLabel: {
+                    Text("Tinted")
+                }
+                .labelsHidden()
+                .controlSize(.small)
+                .font(.system(size: 11.5))
+                .foregroundStyle(.secondary)
+                .frame(width: 220)
+            }
         }
     }
 

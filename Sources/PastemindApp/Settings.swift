@@ -120,6 +120,23 @@ enum Settings {
         }
     }
 
+    /// Liquid Glass's tint, from 0 (clear) to 1 (tinted): macOS 27 has it in System Settings › Appearance, under
+    /// `glassTintKey` in the global defaults, and AppKit and SwiftUI read the app's own first, so one here is
+    /// Pastemind's alone. Nil: as System Settings has it.
+    static let glassTintKey = "NSGlassTintAmount"
+    static var glassTint: Double? {
+        get { Bundle.main.bundleIdentifier.flatMap { defaults.persistentDomain(forName: $0)?[glassTintKey] as? Double } }
+        set {
+            if let newValue { defaults.set(newValue, forKey: glassTintKey) } else { defaults.removeObject(forKey: glassTintKey) }
+            NotificationCenter.default.post(name: PanelChrome.glassChanged, object: nil)
+        }
+    }
+
+    /// System Settings' tint (0.5 when it's never been set there).
+    static var systemGlassTint: Double {
+        defaults.persistentDomain(forName: UserDefaults.globalDomain)?[glassTintKey] as? Double ?? 0.5
+    }
+
     /// Paste keeps formatting (RTF/HTML) when the clip has it; ⇧↩ always pastes plain text.
     static var pasteRich: Bool { defaults.object(forKey: "pasteRich") as? Bool ?? true }
 

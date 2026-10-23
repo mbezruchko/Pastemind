@@ -81,6 +81,9 @@ Chrome's inspector, say); that takes Accessibility access, which auto-paste need
 **Show icon in menu bar** (Settings → General) hides the icon. Settings is then a reopen away: open Pastemind again
 from Applications, Spotlight or its own search, or press ⌘, in either panel. Settings has a **Quit Pastemind** button too.
 
+On macOS 27, **Liquid Glass** (Settings → General) takes the glass from clear to tinted for Pastemind alone, as System
+Settings → Appearance does for every app; **Use System** goes back to that.
+
 It's one panel with two modes. Press the clipboard shortcut while search is open and the history appears under the
 same field, with what you typed carried over (and the other way round); press the same shortcut again to close it.
 

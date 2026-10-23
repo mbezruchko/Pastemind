@@ -17,6 +17,10 @@ enum PanelChrome {
     /// Nothing over the glass: Liquid Glass shows through; its own tint darkens it.
     static let tint = Color.clear
 
+    /// AppKit's own notice that the glass's look changed (not in its headers): posted, glass on screen, AppKit's and
+    /// SwiftUI's, draws anew as the defaults now have it. Without it, only glass made after a change had it.
+    static let glassChanged = Notification.Name("NSGlassEffectDiffusionDidChangeNotification")
+
     /// Both panels share their field's geometry, so switching between them reads as one panel changing mode: the
     /// field stays put, and the clipboard's body appears under it or goes away. Search is Spotlight's size (macOS 26,
     /// measured from screenshots 2026-10-13: 640 × 56, the text 26 points, the magnifier 24): turning into the
@@ -158,7 +162,8 @@ final class PanelContainer: NSView {
         boostBlur()
     }
 
-    // The glass sets its filter again as it draws anew: first showing, the window becoming key or not, resizing.
+    // The glass sets its filter again as it draws anew: first showing, the window becoming key or not, resizing, the
+    // tint changing.
     // Again then (and a moment after, as it draws), and every second while it's up, should something else redo it.
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
@@ -176,6 +181,10 @@ final class PanelContainer: NSView {
                 MainActor.assumeIsolated { self?.boostBlurSoon() }
             }
         }
+        observers.append(NotificationCenter.default.addObserver(forName: PanelChrome.glassChanged, object: nil,
+                                                                queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.boostBlurSoon() }
+        })
         let timer = Timer(timeInterval: 1, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated {
                 guard let self, self.window?.isVisible == true else { return }
