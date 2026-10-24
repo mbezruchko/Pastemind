@@ -288,7 +288,13 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 return
             }
             // A picture file is titled by its size, as a copied picture is: its header read off the main thread.
+            // Another app's own picture (Telegram's cache, cleared later) is kept as a copied picture.
             Task.detached(priority: .userInitiated) {
+                if CopiedFiles.isAppData(urls[0]), let data = Pictures.data(of: urls[0]) {
+                    let ext = urls[0].pathExtension.lowercased()
+                    await MainActor.run { self.record(.image(data, ext: ext), from: source) }
+                    return
+                }
                 let size = Pictures.measure(urls[0])
                 await MainActor.run {
                     _ = self.save(kind: .file, text: text, hash: hash, source: source, width: size?.width,

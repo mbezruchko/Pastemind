@@ -82,6 +82,15 @@ public enum CopiedFiles {
     ]
     private static let privateFolders: Set<String> = [".ssh", ".gnupg", ".aws", ".kube", "keychains", ".password-store"]
 
+    /// In another app's own folders (its container, or a group container it shares): the app's data, not a file of the
+    /// user's. Telegram copies a picture as a link into its cache there, gone once the cache is cleared.
+    public static func isAppData(_ url: URL, home: URL = FileManager.default.homeDirectoryForCurrentUser) -> Bool {
+        let path = url.standardizedFileURL.path
+        return ["Containers", "Group Containers"].contains {
+            path.hasPrefix(home.appendingPathComponent("Library/\($0)").path + "/")
+        }
+    }
+
     /// Their names, the title they go into the vector under.
     public static func title(of urls: [URL]) -> String {
         let names = urls.map(\.lastPathComponent)

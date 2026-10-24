@@ -447,6 +447,18 @@ enum TestDatabase {
         }
     }
 
+    @Test func otherAppsFoldersAreTheirData() {
+        let home = URL(fileURLWithPath: "/Users/me")
+        for path in ["/Users/me/Library/Group Containers/X.ru.keepcoder.Telegram/postbox/media/photo-y.jpg",
+                     "/Users/me/Library/Containers/ru.keepcoder.Telegram/Data/tmp/photo.jpg"] {
+            #expect(CopiedFiles.isAppData(URL(fileURLWithPath: path), home: home), "\(path)")
+        }
+        for path in ["/Users/me/Downloads/photo.jpg", "/Users/me/Library/Containers",
+                     "/Users/me/Library/ContainersX/a.png", "/Users/other/Library/Containers/app/Data/a.png"] {
+            #expect(!CopiedFiles.isAppData(URL(fileURLWithPath: path), home: home), "\(path)")
+        }
+    }
+
     @Test func filesGoInUnderTheirNames() {
         let urls = (1...14).map { URL(fileURLWithPath: "/tmp/photo-\($0).jpg") }
         #expect(CopiedFiles.title(of: Array(urls.prefix(2))) == "photo-1.jpg, photo-2.jpg")
@@ -965,5 +977,21 @@ extension SnippetTests {
         #expect(Set(try fm.contentsOfDirectory(atPath: kept.path)) == ["7", ".earlier"])
         KeptFiles.remove([7], in: kept)
         #expect(clip.fileURLs(keptIn: kept)[0] == urls[0])
+    }
+
+    /// A link (Telegram copies a picture as one) is kept as the file it links to, so the copy outlives that file.
+    @Test func aLinkIsKeptAsItsFile() throws {
+        let fm = FileManager.default
+        let root = fm.temporaryDirectory.appendingPathComponent("pastemind-kept-\(UUID().uuidString)")
+        defer { try? fm.removeItem(at: root) }
+        let file = root.appendingPathComponent("cache/photo-y")
+        let link = root.appendingPathComponent("photo-y.jpg")
+        try fm.createDirectory(at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try Data(repeating: 7, count: 10).write(to: file)
+        try fm.createSymbolicLink(at: link, withDestinationURL: file)
+        let kept = root.appendingPathComponent("Files")
+        #expect(KeptFiles.keep([link], for: 3, in: kept) == 1)
+        try fm.removeItem(at: file)
+        #expect(try Data(contentsOf: KeptFiles.url(clip: 3, index: 0, name: "photo-y.jpg", in: kept)).count == 10)
     }
 }

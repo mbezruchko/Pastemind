@@ -31,7 +31,7 @@ final class ClipboardWatcher {
     /// browsers put a photo there decoded, as a TIFF (48 MB for 12 megapixels), kept as PNG (`Pictures.save`).
     private static let maxTextBytes = 4 << 20
     private static let maxRichBytes = 8 << 20
-    private static let maxImageBytes = 256 << 20
+    nonisolated static let maxImageBytes = 256 << 20
     /// The kinds of picture taken, the first one there: a GIF before its first frame as PNG, the formats apps keep
     /// pictures in before the TIFF they decode them to.
     private static let imageTypes: [(type: NSPasteboard.PasteboardType, ext: String)] = [
@@ -248,11 +248,21 @@ nonisolated enum Pictures {
         _ = decode(name, pixels: iconPixels)
     }
 
-    /// A picture file's size in pixels (from its header) and on disk, as a saved picture's: nil when it's gone.
+    /// A picture file's size in pixels (from its header) and on disk, as a saved picture's: nil when it's gone. A
+    /// link's is its file's (its own is the length of the path in it).
     static func measure(_ url: URL) -> (width: Int?, height: Int?, bytes: Int)? {
+        let url = url.resolvingSymlinksInPath()
         guard let bytes = (try? url.resourceValues(forKeys: [.fileSizeKey]))?.fileSize else { return nil }
         let size = pixels(of: CGImageSourceCreateWithURL(url as CFURL, nil))
         return (size?.width, size?.height, bytes)
+    }
+
+    /// A picture file's contents, to keep as a copied picture: nil when it's too big, or can't be read (another app's
+    /// data, without access to it).
+    static func data(of url: URL) -> Data? {
+        guard let bytes = (try? url.resolvingSymlinksInPath().resourceValues(forKeys: [.fileSizeKey]))?.fileSize,
+              bytes <= ClipboardWatcher.maxImageBytes else { return nil }
+        return try? Data(contentsOf: url)
     }
 
     private static func pixels(of source: CGImageSource?) -> (width: Int, height: Int)? {

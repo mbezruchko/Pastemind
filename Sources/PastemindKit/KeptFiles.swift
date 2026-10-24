@@ -25,8 +25,11 @@ public enum KeptFiles {
         let manager = FileManager.default
         let kept = folder.appendingPathComponent("\(id)")
         var budget = maxBytes
+        // A link is kept as the file it links to: a copy of the link goes when that file does.
+        let sources = urls.map { $0.resolvingSymlinksInPath() }
         let chosen = urls.indices.filter { index in
-            guard let size = size(of: urls[index], limit: budget) else { return false }
+            guard !CopiedFiles.isPrivate(urls[index]), let size = size(of: sources[index], limit: budget)
+            else { return false }
             budget -= size
             return true
         }
@@ -40,7 +43,7 @@ public enum KeptFiles {
             for index in chosen {
                 let target = incoming.appendingPathComponent("\(index)/\(urls[index].lastPathComponent)")
                 try manager.createDirectory(at: target.deletingLastPathComponent(), withIntermediateDirectories: true)
-                try manager.copyItem(at: urls[index], to: target)
+                try manager.copyItem(at: sources[index], to: target)
             }
             try? manager.removeItem(at: kept)
             try manager.moveItem(at: incoming, to: kept)
