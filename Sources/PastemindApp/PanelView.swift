@@ -108,6 +108,25 @@ private struct NoteToast: View {
     }
 }
 
+/// Under a file macOS keeps Pastemind from reading: the way to Full Disk Access, where Pastemind is added by hand.
+private struct LockedFileHint: View {
+    private static let settings =
+        URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles")!
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 6) {
+            Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
+            Text("Pastemind needs Full Disk Access to open this file.")
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
+            Button { NSWorkspace.shared.open(Self.settings) } label: { Pill(title: "Allow…") }
+                .buttonStyle(Pressable())
+        }
+        .font(.system(size: 11.5))
+    }
+}
+
 private struct EmptyState: View {
     let controller: PanelController
 
@@ -292,6 +311,8 @@ struct ClipPreview: View {
     @State private var cover: (path: String, image: NSImage)?
     /// The picture decoded for the preview, with whose it is (the view outlives the clip it shows).
     @State private var loaded: (name: String, image: NSImage)?
+    /// The file shown, when it's there but macOS keeps Pastemind from reading it (`LockedFileHint`).
+    @State private var locked: String?
     /// The preview stops here: nobody reads a megabyte in a preview, and the text view would still hold all of it.
     private static let previewCharacters = 100_000
     static let pictureShape = RoundedRectangle(cornerRadius: 8, style: .continuous)
@@ -401,6 +422,7 @@ struct ClipPreview: View {
                         .truncationMode(.head)
                         .lineLimit(1)
                 }
+                if locked == url.path { LockedFileHint().padding(.top, 4) }
             }
             .padding(16)
             .task(id: Thumbnails.coverPath(of: clip)) {
@@ -408,6 +430,7 @@ struct ClipPreview: View {
                       let image = await Thumbnails.shared.load(path, side: Thumbnails.coverSide) else { return }
                 cover = (path, image)
             }
+            .task(id: url.path) { locked = await Self.isLocked(url) ? url.path : nil }
         case .file where clip.fileURLs.count > 1:
             FileGrid(urls: clip.fileURLs, anchor: fileAnchor, lifted: lifted ? liftedFile : nil, lookAt: lookAt,
                      dragBegan: dragBegan, dragEnded: dragEnded)
@@ -449,6 +472,7 @@ struct ClipPreview: View {
                         }
                         .overlay(dragSource(ClipDrag.writers(forFile: url), image: Icons.file(url)))
                     }
+                    if let url = clip.fileURLs.first, locked == url.path { LockedFileHint().padding(.top, 4) }
                 }
                 .padding(16)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -457,6 +481,10 @@ struct ClipPreview: View {
                 guard let path = Thumbnails.coverPath(of: clip),
                       let image = await Thumbnails.shared.load(path, side: Thumbnails.coverSide) else { return }
                 cover = (path, image)
+            }
+            .task(id: clip.fileURLs.first?.path) {
+                guard let url = clip.fileURLs.first else { return }
+                locked = await Self.isLocked(url) ? url.path : nil
             }
         case .link:
             // The address, and the site above it, open it in the default browser.
@@ -508,6 +536,14 @@ struct ClipPreview: View {
                 .animation(liftFade, value: lifted)
                 .background(AnchorView(anchor: anchor))
         }
+    }
+
+    /// There, but not to be read: another app's own file (Telegram's pictures) without Full Disk Access, which macOS
+    /// doesn't ask for.
+    private static func isLocked(_ url: URL) async -> Bool {
+        await Task.detached {
+            FileManager.default.fileExists(atPath: url.path) && !FileManager.default.isReadableFile(atPath: url.path)
+        }.value
     }
 
     /// What's cached already, so the picture is there from the first frame and nothing below it moves: the preview's
