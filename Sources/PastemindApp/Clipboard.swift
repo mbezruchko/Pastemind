@@ -164,6 +164,60 @@ final class ClipboardWatcher {
     }
 }
 
+/// Screenshots taken on the lock screen: macOS saves them only as files ("LWScreenShot …png"), even those taken to
+/// the clipboard (the pasteboard is shut while the screen is locked). Found once it's unlocked.
+final class LockScreenShots {
+    var onShots: ([URL]) -> Void = { _ in }
+    private var lockedAt: Date?
+    private var observers: [NSObjectProtocol] = []
+
+    func start() {
+        let center = DistributedNotificationCenter.default()
+        observers = [
+            center.addObserver(forName: .init("com.apple.screenIsLocked"), object: nil, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated { self?.lockedAt = Date() }
+            },
+            center.addObserver(forName: .init("com.apple.screenIsUnlocked"), object: nil, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated { self?.unlocked() }
+            },
+        ]
+    }
+
+    private func unlocked() {
+        guard let since = lockedAt else { return }
+        lockedAt = nil
+        Task.detached(priority: .userInitiated) {
+            try? await Task.sleep(for: .seconds(1))   // one taken just before is still being written
+            let shots = Self.find(since: since)
+            guard !shots.isEmpty else { return }
+            await MainActor.run { self.onShots(shots) }
+        }
+    }
+
+    /// In the Desktop, or wherever screenshots are set to go. A folder is listed only when it changed since the lock:
+    /// listing the Desktop asks macOS for it, its own date doesn't.
+    nonisolated private static func find(since: Date) -> [URL] {
+        let desktop = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Desktop")
+        let chosen = (UserDefaults.standard.persistentDomain(forName: "com.apple.screencapture")?["location"] as? String)
+            .map { URL(fileURLWithPath: ($0 as NSString).expandingTildeInPath) }
+        let folders = Set([desktop, chosen].compactMap { $0?.standardizedFileURL })
+        return folders.flatMap { folder -> [(url: URL, created: Date)] in
+            guard let changed = try? folder.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate,
+                  changed >= since,
+                  let urls = try? FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: [.creationDateKey])
+            else { return [] }
+            return urls.compactMap { url in
+                guard url.lastPathComponent.hasPrefix("LWScreenShot"),
+                      let created = try? url.resourceValues(forKeys: [.creationDateKey]).creationDate, created >= since
+                else { return nil }
+                return (url, created)
+            }
+        }
+        .sorted { $0.created < $1.created }
+        .map(\.url)
+    }
+}
+
 /// Puts a clip back on the pasteboard and, with Accessibility access, presses ⌘V in the app in front.
 enum Paster {
     static func write(_ clip: Clip, rich: (data: Data, type: String)?) {
@@ -197,6 +251,17 @@ enum Paster {
         if items.isEmpty { items.append(NSPasteboardItem()) }
         items[0].setData(Data(), forType: ClipboardWatcher.ownType)
         pasteboard.writeObjects(items)
+    }
+
+    /// A picture that isn't a clip yet (a lock screen screenshot).
+    static func write(picture data: Data, ext: String) {
+        guard let type = UTType(filenameExtension: ext) else { return }
+        let pasteboard = Pasteboards.main
+        pasteboard.clearContents()
+        let item = NSPasteboardItem()
+        item.setData(data, forType: NSPasteboard.PasteboardType(type.identifier))
+        item.setData(Data(), forType: ClipboardWatcher.ownType)
+        pasteboard.writeObjects([item])
     }
 
     static var canPaste: Bool { AXIsProcessTrusted() }

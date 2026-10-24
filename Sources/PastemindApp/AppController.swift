@@ -12,6 +12,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     /// Recent files by what's in them, for search.
     private(set) var files: FileIndexer!
     private let watcher = ClipboardWatcher()
+    private let lockShots = LockScreenShots()
     let hotkeys = HotkeyCenter()
     /// The one window the clipboard history and search show in, as two modes of one panel.
     private var host: PanelHost!
@@ -76,6 +77,8 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         watcher.onCapture = { [weak self] capture, source in self?.record(capture, from: source) }
         watcher.onIncoming = { [weak self] source in self?.setIncoming(source) }
         watcher.start()
+        lockShots.onShots = { [weak self] urls in self?.recordLockScreenShots(urls) }
+        lockShots.start()
         makeStatusItem()
         updateStatusItem()
         makeMainMenu()
@@ -318,6 +321,24 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
                     if let clip, clip.text.isEmpty { self.readText(of: clip) }
                 }
                 if let name = saved?.name { Pictures.makeCopies(name) }
+            }
+        }
+    }
+
+    /// Screenshots from the lock screen, as copied pictures; the last one on the pasteboard too, where one taken to the
+    /// clipboard would have gone.
+    private func recordLockScreenShots(_ urls: [URL]) {
+        guard !Settings.paused else { return }
+        let source = CaptureSource(appID: "com.apple.screenshot.launcher", appName: "Screenshot")
+        Task.detached(priority: .userInitiated) {
+            let shots = urls.compactMap { url in
+                Pictures.data(of: url).map { (data: $0, ext: url.pathExtension.lowercased()) }
+            }
+            await MainActor.run {
+                for shot in shots { self.record(.image(shot.data, ext: shot.ext), from: source) }
+                guard let last = shots.last else { return }
+                Paster.write(picture: last.data, ext: last.ext)
+                self.watcher.skipCurrent()
             }
         }
     }
